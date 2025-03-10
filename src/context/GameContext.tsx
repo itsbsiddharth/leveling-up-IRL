@@ -3,9 +3,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { getCurrentRank, getNextRank, getProgressToNextRank, levelWithinRank } from '@/utils/ranks';
 
-type ActivityType = 'study' | 'sports' | 'wasted';
+export type ActivityType = 'study' | 'sports' | 'wasted';
 
-interface Activity {
+export interface Activity {
   id: string;
   type: ActivityType;
   minutes: number;
