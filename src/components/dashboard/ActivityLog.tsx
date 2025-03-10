@@ -2,29 +2,18 @@
 import React from 'react';
 import { useGame } from '@/context/GameContext';
 import { Book, Dumbbell, Clock } from 'lucide-react';
+import { isToday } from '@/utils/activityUtils';
 
 const ActivityLog = () => {
   const { activities } = useGame();
   
+  // Filter activities to show only today's
+  const todayActivities = activities.filter(activity => isToday(activity.timestamp));
+  
   // Format the date to be more readable
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    const isToday = date >= today;
-    const isYesterday = date >= yesterday && date < today;
-    
-    if (isToday) {
-      return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    } else if (isYesterday) {
-      return `Yesterday at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + 
-             ` at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    }
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
   
   const getActivityIcon = (type: string) => {
@@ -40,10 +29,10 @@ const ActivityLog = () => {
     }
   };
   
-  if (activities.length === 0) {
+  if (todayActivities.length === 0) {
     return (
       <div className="cyber-panel p-6 rounded-lg text-center">
-        <p className="text-gray-400">No activities logged yet.</p>
+        <p className="text-gray-400">No activities logged today.</p>
         <p className="text-sm text-gray-500 mt-2">Use the timer to track your activities.</p>
       </div>
     );
@@ -51,10 +40,10 @@ const ActivityLog = () => {
 
   return (
     <div className="cyber-panel p-6 rounded-lg">
-      <h3 className="text-lg font-semibold mb-4 text-white">Recent Activity</h3>
+      <h3 className="text-lg font-semibold mb-4 text-white">Today's Activity</h3>
       
       <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-none">
-        {activities.slice(0, 10).map(activity => (
+        {todayActivities.map(activity => (
           <div 
             key={activity.id} 
             className="flex items-center space-x-3 p-3 rounded-md bg-black/30 border border-gray-800"

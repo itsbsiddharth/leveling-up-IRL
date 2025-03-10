@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import PageTransition from '@/components/layout/PageTransition';
 import Navbar from '@/components/layout/Navbar';
+import ActivityHeatmap from '@/components/profile/ActivityHeatmap';
 import { useAuth } from '@/context/AuthContext';
 import { useGame } from '@/context/GameContext';
 import { User, LogOut, Mail, Save } from 'lucide-react';
@@ -105,6 +106,9 @@ const Profile = () => {
                   <span>Sign Out</span>
                 </button>
               </div>
+              
+              {/* Activity Heatmap */}
+              <ActivityHeatmap />
               
               <div className="cyber-panel p-6 rounded-lg">
                 <h3 className="text-lg font-semibold mb-4 text-white">Your Stats</h3>
