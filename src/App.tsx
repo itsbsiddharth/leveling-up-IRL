@@ -14,9 +14,6 @@ import Timer from "./pages/Timer";
 import Achievements from "./pages/Achievements";
 import Profile from "./pages/Profile";
 
-// Add framer-motion dependency
-<lov-add-dependency>framer-motion@latest</lov-add-dependency>
-
 const queryClient = new QueryClient();
 
 const App = () => (
