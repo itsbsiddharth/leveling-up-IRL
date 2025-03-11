@@ -42,6 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log("Auth state changed:", event, newSession?.user?.id);
       setSession(newSession);
       setIsLoading(true);
 
@@ -82,6 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check for existing session on load
     const initializeAuth = async () => {
       const { data: { session: initialSession } } = await supabase.auth.getSession();
+      console.log("Initial session check:", initialSession?.user?.id);
       
       if (initialSession) {
         try {
@@ -128,14 +130,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
+      console.log("Attempting to login with:", email);
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       
-      if (error) throw error;
-      
-      // Only show success message if there was no error
-      if (data.session) {
-        toast.success('Successfully logged in!');
+      if (error) {
+        console.error("Login error:", error);
+        throw error;
       }
+      
+      console.log("Login successful:", data.user?.id);
+      toast.success('Successfully logged in!');
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message);
@@ -153,6 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
+      console.log("Attempting to signup with:", email, username);
       const { data, error } = await supabase.auth.signUp({ 
         email, 
         password,
@@ -163,9 +168,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Signup error:", error);
+        throw error;
+      }
       
-      // Only show success message if there was no error
+      console.log("Signup response:", data);
+      
       if (data.user) {
         toast.success('Successfully signed up!', { 
           description: 'You can now log in with your credentials.'

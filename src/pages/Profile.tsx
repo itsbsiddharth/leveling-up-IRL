@@ -60,6 +60,7 @@ const Profile = () => {
     setError(null);
     
     try {
+      console.log("Form submission:", isSigningUp ? "signup" : "login", email, password);
       if (isSigningUp) {
         await signup(email, password, name || email.split('@')[0]);
       } else {
@@ -69,11 +70,8 @@ const Profile = () => {
       setPassword('');
       setName('');
     } catch (err: any) {
-      console.error('Authentication error:', err);
+      console.error('Authentication error in Profile component:', err);
       setError(err.message || 'An error occurred during authentication');
-      toast.error(isSigningUp ? 'Failed to create account' : 'Failed to sign in', {
-        description: err.message
-      });
     } finally {
       setIsLoading(false);
     }
@@ -83,10 +81,7 @@ const Profile = () => {
     try {
       await logout();
     } catch (err: any) {
-      console.error('Logout error:', err);
-      toast.error('Failed to log out', {
-        description: err.message
-      });
+      console.error('Logout error in Profile component:', err);
     }
   };
 
