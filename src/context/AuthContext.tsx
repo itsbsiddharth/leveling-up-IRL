@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext } from 'react';
 import { authService } from '@/services/authService';
 import { useAuthState } from '@/hooks/useAuthState';
 import { AuthContextType } from '@/types/auth';
@@ -20,7 +20,6 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { 
     currentUser, 
-    setCurrentUser,
     session, 
     isLoading, 
     error, 
@@ -30,9 +29,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setError(null);
     try {
-      await authService.login(email, password);
+      console.log("Starting login process in AuthContext:", email);
+      const result = await authService.login(email, password);
+      console.log("Login completed in AuthContext:", result?.user?.id);
+      return result;
     } catch (err: any) {
-      console.error('Login error:', err);
+      console.error('Login error in AuthContext:', err);
       setError(err.message);
       toast.error('Failed to login', {
         description: err.message
@@ -44,9 +46,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signup = async (email: string, password: string, username?: string) => {
     setError(null);
     try {
-      await authService.signup(email, password, username);
+      console.log("Starting signup process in AuthContext:", email);
+      const result = await authService.signup(email, password, username);
+      console.log("Signup completed in AuthContext:", result?.user?.id);
+      return result;
     } catch (err: any) {
-      console.error('Signup error:', err);
+      console.error('Signup error in AuthContext:', err);
       setError(err.message);
       toast.error('Failed to sign up', {
         description: err.message
@@ -59,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await authService.logout();
     } catch (err: any) {
-      console.error('Logout error:', err);
+      console.error('Logout error in AuthContext:', err);
       toast.error('Failed to log out', {
         description: err.message
       });

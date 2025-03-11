@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { User, Mail, Save, UserPlus, RefreshCw } from 'lucide-react';
+import { User, Mail, Save, UserPlus, RefreshCw, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 const AuthForm = () => {
   const { login, signup, isLoading: authLoading } = useAuth();
@@ -21,17 +22,25 @@ const AuthForm = () => {
     
     try {
       console.log("Form submission:", isSigningUp ? "signup" : "login", email, password);
+      
       if (isSigningUp) {
-        await signup(email, password, name || email.split('@')[0]);
+        const result = await signup(email, password, name || email.split('@')[0]);
+        console.log("Signup result:", result);
       } else {
-        await login(email, password);
+        const result = await login(email, password);
+        console.log("Login result:", result);
       }
+      
+      // Clear form fields on success
       setEmail('');
       setPassword('');
       setName('');
     } catch (err: any) {
       console.error('Authentication error in AuthForm component:', err);
       setError(err.message || 'An error occurred during authentication');
+      toast.error(isSigningUp ? 'Signup failed' : 'Login failed', {
+        description: err.message || 'Please check your credentials and try again'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -49,8 +58,9 @@ const AuthForm = () => {
       </h3>
       
       {error && (
-        <div className="mb-4 p-3 bg-red-900/30 border border-red-500/50 text-red-300 text-sm rounded-md">
-          {error}
+        <div className="mb-4 p-3 bg-red-900/30 border border-red-500/50 text-red-300 text-sm rounded-md flex items-start">
+          <AlertCircle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
+          <span>{error}</span>
         </div>
       )}
       
