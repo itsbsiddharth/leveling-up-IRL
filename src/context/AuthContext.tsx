@@ -1,25 +1,9 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import React, { createContext, useContext, useState } from 'react';
+import { authService } from '@/services/authService';
+import { useAuthState } from '@/hooks/useAuthState';
+import { AuthContextType } from '@/types/auth';
 import { toast } from 'sonner';
-
-interface UserProfile {
-  id: string;
-  username: string | null;
-  avatar_url: string | null;
-  email: string;
-}
-
-interface AuthContextType {
-  currentUser: UserProfile | null;
-  session: Session | null;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, username?: string) => Promise<void>;
-  logout: () => Promise<void>;
-  isLoading: boolean;
-  error: string | null;
-}
 
 const AuthContext = createContext<AuthContextType>({
   currentUser: null,
@@ -34,112 +18,19 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      console.log("Auth state changed:", event, newSession?.user?.id);
-      setSession(newSession);
-      setIsLoading(true);
-
-      if (newSession) {
-        try {
-          // Fetch the user profile from the profiles table
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', newSession.user.id)
-            .single();
-
-          if (profileError) throw profileError;
-
-          setCurrentUser({
-            id: newSession.user.id,
-            username: profile?.username || newSession.user.email?.split('@')[0] || null,
-            avatar_url: profile?.avatar_url,
-            email: newSession.user.email || '',
-          });
-        } catch (err) {
-          console.error('Error fetching user profile:', err);
-          // Even if there's an error fetching the profile, we can still set the basic user info
-          setCurrentUser({
-            id: newSession.user.id,
-            username: newSession.user.email?.split('@')[0] || null,
-            avatar_url: null,
-            email: newSession.user.email || '',
-          });
-        }
-      } else {
-        setCurrentUser(null);
-      }
-      
-      setIsLoading(false);
-    });
-
-    // Check for existing session on load
-    const initializeAuth = async () => {
-      const { data: { session: initialSession } } = await supabase.auth.getSession();
-      console.log("Initial session check:", initialSession?.user?.id);
-      
-      if (initialSession) {
-        try {
-          // Fetch the user profile from the profiles table
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', initialSession.user.id)
-            .single();
-
-          if (profileError) throw profileError;
-
-          setCurrentUser({
-            id: initialSession.user.id,
-            username: profile?.username || initialSession.user.email?.split('@')[0] || null,
-            avatar_url: profile?.avatar_url,
-            email: initialSession.user.email || '',
-          });
-        } catch (err) {
-          console.error('Error fetching initial user profile:', err);
-          // Even if there's an error fetching the profile, we can still set the basic user info
-          setCurrentUser({
-            id: initialSession.user.id,
-            username: initialSession.user.email?.split('@')[0] || null,
-            avatar_url: null,
-            email: initialSession.user.email || '',
-          });
-        }
-      }
-      
-      setSession(initialSession);
-      setIsLoading(false);
-    };
-
-    initializeAuth();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  const { 
+    currentUser, 
+    setCurrentUser,
+    session, 
+    isLoading, 
+    error, 
+    setError 
+  } = useAuthState();
 
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
     setError(null);
-    
     try {
-      console.log("Attempting to login with:", email);
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      
-      if (error) {
-        console.error("Login error:", error);
-        throw error;
-      }
-      
-      console.log("Login successful:", data.user?.id);
-      toast.success('Successfully logged in!');
+      await authService.login(email, password);
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message);
@@ -147,39 +38,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: err.message
       });
       throw err;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const signup = async (email: string, password: string, username?: string) => {
-    setIsLoading(true);
     setError(null);
-    
     try {
-      console.log("Attempting to signup with:", email, username);
-      const { data, error } = await supabase.auth.signUp({ 
-        email, 
-        password,
-        options: {
-          data: {
-            name: username || email.split('@')[0]
-          }
-        }
-      });
-      
-      if (error) {
-        console.error("Signup error:", error);
-        throw error;
-      }
-      
-      console.log("Signup response:", data);
-      
-      if (data.user) {
-        toast.success('Successfully signed up!', { 
-          description: 'You can now log in with your credentials.'
-        });
-      }
+      await authService.signup(email, password, username);
     } catch (err: any) {
       console.error('Signup error:', err);
       setError(err.message);
@@ -187,25 +52,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: err.message
       });
       throw err;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const logout = async () => {
-    setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      toast.success('Successfully logged out');
+      await authService.logout();
     } catch (err: any) {
       console.error('Logout error:', err);
       toast.error('Failed to log out', {
         description: err.message
       });
       throw err;
-    } finally {
-      setIsLoading(false);
     }
   };
 
