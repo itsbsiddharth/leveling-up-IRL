@@ -128,11 +128,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) throw error;
-      toast.success('Successfully logged in!');
+      
+      // Only show success message if there was no error
+      if (data.session) {
+        toast.success('Successfully logged in!');
+      }
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.message);
       toast.error('Failed to login', {
         description: err.message
@@ -148,7 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
-      const { error } = await supabase.auth.signUp({ 
+      const { data, error } = await supabase.auth.signUp({ 
         email, 
         password,
         options: {
@@ -159,8 +164,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (error) throw error;
-      toast.success('Successfully signed up!');
+      
+      // Only show success message if there was no error
+      if (data.user) {
+        toast.success('Successfully signed up!', { 
+          description: 'You can now log in with your credentials.'
+        });
+      }
     } catch (err: any) {
+      console.error('Signup error:', err);
       setError(err.message);
       toast.error('Failed to sign up', {
         description: err.message
@@ -172,14 +184,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    setIsLoading(true);
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       toast.success('Successfully logged out');
     } catch (err: any) {
+      console.error('Logout error:', err);
       toast.error('Failed to log out', {
         description: err.message
       });
+      throw err;
+    } finally {
+      setIsLoading(false);
     }
   };
 

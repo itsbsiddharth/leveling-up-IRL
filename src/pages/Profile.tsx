@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import PageTransition from '@/components/layout/PageTransition';
 import Navbar from '@/components/layout/Navbar';
@@ -7,7 +6,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useGame } from '@/context/GameContext';
 import { User, LogOut, Mail, Save, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 
 const Profile = () => {
   const { currentUser, login, signup, logout, isLoading: authLoading } = useAuth();
@@ -19,6 +17,7 @@ const Profile = () => {
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSigningUp, setIsSigningUp] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const totalTimeSpent = activities.reduce((total, activity) => {
     return total + activity.minutes;
@@ -58,33 +57,43 @@ const Profile = () => {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
     
     try {
       if (isSigningUp) {
-        await signup(email, password, name);
+        await signup(email, password, name || email.split('@')[0]);
       } else {
         await login(email, password);
       }
       setEmail('');
       setPassword('');
       setName('');
-    } catch (error) {
-      // Error is already handled in the auth context
+    } catch (err: any) {
+      console.error('Authentication error:', err);
+      setError(err.message || 'An error occurred during authentication');
+      toast.error(isSigningUp ? 'Failed to create account' : 'Failed to sign in', {
+        description: err.message
+      });
     } finally {
       setIsLoading(false);
     }
   };
   
   const handleLogout = async () => {
-    await logout();
+    try {
+      await logout();
+    } catch (err: any) {
+      console.error('Logout error:', err);
+      toast.error('Failed to log out', {
+        description: err.message
+      });
+    }
   };
 
   const toggleAuthMode = () => {
     setIsSigningUp(!isSigningUp);
     setError(null);
   };
-
-  const [error, setError] = useState<string | null>(null);
 
   return (
     <PageTransition>
@@ -119,7 +128,6 @@ const Profile = () => {
                 </button>
               </div>
               
-              {/* Activity Heatmap */}
               <ActivityHeatmap />
               
               <div className="cyber-panel p-6 rounded-lg">
