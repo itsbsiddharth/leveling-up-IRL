@@ -8,8 +8,8 @@ import { toast } from 'sonner';
 const AuthContext = createContext<AuthContextType>({
   currentUser: null,
   session: null,
-  login: async () => {},
-  signup: async () => {},
+  login: async () => ({ user: null, session: null }),
+  signup: async () => ({ user: null, session: null }),
   logout: async () => {},
   isLoading: true,
   error: null,

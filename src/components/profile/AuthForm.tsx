@@ -26,9 +26,15 @@ const AuthForm = () => {
       if (isSigningUp) {
         const result = await signup(email, password, name || email.split('@')[0]);
         console.log("Signup result:", result);
+        if (result.user) {
+          toast.success('Account created successfully!');
+        }
       } else {
         const result = await login(email, password);
         console.log("Login result:", result);
+        if (result.user) {
+          toast.success('Logged in successfully!');
+        }
       }
       
       // Clear form fields on success
