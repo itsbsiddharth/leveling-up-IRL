@@ -1,9 +1,10 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { AuthLoginResult, AuthSignupResult } from '@/types/auth';
 
 export const authService = {
-  login: async (email: string, password: string) => {
+  login: async (email: string, password: string): Promise<AuthLoginResult> => {
     console.log("Attempting to login with:", email);
     
     try {
@@ -48,7 +49,7 @@ export const authService = {
     }
   },
 
-  signup: async (email: string, password: string, username?: string) => {
+  signup: async (email: string, password: string, username?: string): Promise<AuthSignupResult> => {
     console.log("Attempting to signup with:", email, username);
     
     try {

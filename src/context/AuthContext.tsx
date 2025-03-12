@@ -2,7 +2,7 @@
 import React, { createContext, useContext } from 'react';
 import { authService } from '@/services/authService';
 import { useAuthState } from '@/hooks/useAuthState';
-import { AuthContextType } from '@/types/auth';
+import { AuthContextType, AuthLoginResult, AuthSignupResult } from '@/types/auth';
 import { toast } from 'sonner';
 
 const AuthContext = createContext<AuthContextType>({
@@ -26,13 +26,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError 
   } = useAuthState();
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<AuthLoginResult> => {
     setError(null);
     try {
       console.log("Starting login process in AuthContext:", email);
       const result = await authService.login(email, password);
       console.log("Login completed in AuthContext:", result?.user?.id);
-      return result;
+      return result as AuthLoginResult;
     } catch (err: any) {
       console.error('Login error in AuthContext:', err);
       setError(err.message);
@@ -45,13 +45,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signup = async (email: string, password: string, username?: string) => {
+  const signup = async (email: string, password: string, username?: string): Promise<AuthSignupResult> => {
     setError(null);
     try {
       console.log("Starting signup process in AuthContext:", email);
       const result = await authService.signup(email, password, username);
       console.log("Signup completed in AuthContext:", result?.user?.id);
-      return result;
+      return result as AuthSignupResult;
     } catch (err: any) {
       console.error('Signup error in AuthContext:', err);
       setError(err.message);

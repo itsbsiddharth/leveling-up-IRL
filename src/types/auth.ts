@@ -8,15 +8,49 @@ export interface UserProfile {
   email: string;
 }
 
+// Expanded to include the dev mode response shape
 export interface AuthLoginResult {
-  user: User | null;
-  session: Session | null;
+  user: User | null | {
+    id: string;
+    email: string;
+    user_metadata: {
+      name: string;
+    };
+  };
+  session: Session | null | {
+    access_token: string;
+    refresh_token: string;
+    expires_at: number;
+    expires_in: number;
+    token_type: string;
+    user: {
+      id: string;
+      email: string;
+    };
+  };
   weakPassword?: WeakPassword | null;
 }
 
+// Expanded to include the dev mode response shape
 export interface AuthSignupResult {
-  user: User | null;
-  session: Session | null;
+  user: User | null | {
+    id: string;
+    email: string;
+    user_metadata: {
+      name: string;
+    };
+  };
+  session: Session | null | {
+    access_token: string;
+    refresh_token: string;
+    expires_at: number;
+    expires_in: number;
+    token_type: string;
+    user: {
+      id: string;
+      email: string;
+    };
+  };
 }
 
 export interface AuthContextType {
