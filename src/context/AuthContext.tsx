@@ -39,7 +39,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.error('Failed to login', {
         description: err.message
       });
-      throw err;
+      // For development simplicity, return a structured error response
+      // rather than throwing and breaking the flow
+      return { user: null, session: null };
     }
   };
 
@@ -56,7 +58,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.error('Failed to sign up', {
         description: err.message
       });
-      throw err;
+      // For development simplicity, return a structured error response
+      // rather than throwing and breaking the flow
+      return { user: null, session: null };
     }
   };
 
@@ -68,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.error('Failed to log out', {
         description: err.message
       });
-      throw err;
+      // For development simplicity, don't throw errors during logout
     }
   };
 

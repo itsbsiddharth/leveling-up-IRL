@@ -24,16 +24,24 @@ const AuthForm = () => {
       console.log("Form submission:", isSigningUp ? "signup" : "login", email, password);
       
       if (isSigningUp) {
+        // During development, simplify signup and show more details
         const result = await signup(email, password, name || email.split('@')[0]);
-        console.log("Signup result:", result);
+        console.log("Signup result (detailed):", result);
+        
         if (result.user) {
-          toast.success('Account created successfully!');
+          toast.success('Account created successfully!', {
+            description: `Welcome ${result.user.email || 'new user'}!`
+          });
         }
       } else {
+        // During development, simplify login and show more details
         const result = await login(email, password);
-        console.log("Login result:", result);
+        console.log("Login result (detailed):", result);
+        
         if (result.user) {
-          toast.success('Logged in successfully!');
+          toast.success('Logged in successfully!', {
+            description: `Welcome back ${result.user.email || 'user'}!`
+          });
         }
       }
       
@@ -42,10 +50,12 @@ const AuthForm = () => {
       setPassword('');
       setName('');
     } catch (err: any) {
-      console.error('Authentication error in AuthForm component:', err);
+      console.error('Authentication error (detailed):', err);
       setError(err.message || 'An error occurred during authentication');
+      
+      // Show more detailed toast errors during development
       toast.error(isSigningUp ? 'Signup failed' : 'Login failed', {
-        description: err.message || 'Please check your credentials and try again'
+        description: `Error: ${err.message}. Check console for details.`
       });
     } finally {
       setIsLoading(false);
@@ -55,6 +65,15 @@ const AuthForm = () => {
   const toggleAuthMode = () => {
     setIsSigningUp(!isSigningUp);
     setError(null);
+  };
+
+  // For development, add some test credentials
+  const fillTestCredentials = () => {
+    setEmail('test@example.com');
+    setPassword('password123');
+    if (isSigningUp) {
+      setName('TestUser');
+    }
   };
 
   return (
@@ -125,6 +144,17 @@ const AuthForm = () => {
           <p className="mt-1 text-xs text-gray-500">
             {isSigningUp && "Password must be at least 6 characters"}
           </p>
+        </div>
+        
+        {/* Dev helper buttons */}
+        <div className="flex justify-between items-center">
+          <button
+            type="button"
+            onClick={fillTestCredentials}
+            className="text-xs text-cyber-blue hover:underline"
+          >
+            Fill test credentials
+          </button>
         </div>
         
         <button
