@@ -5,7 +5,20 @@ import Navbar from '@/components/layout/Navbar';
 import ActivityHeatmap from '@/components/profile/ActivityHeatmap';
 import { useAuth } from '@/context/AuthContext';
 import { useGame } from '@/context/GameContext';
-import { User, LogOut, Mail, Save } from 'lucide-react';
+import { 
+  User, 
+  LogOut, 
+  Mail, 
+  Save, 
+  Clock, 
+  BookOpen, 
+  Activity, 
+  Heart, 
+  Flame, 
+  TrendingUp, 
+  Trophy, 
+  Award 
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 const Profile = () => {
@@ -17,16 +30,13 @@ const Profile = () => {
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
+  // Calculate all time metrics
   const totalTimeSpent = activities.reduce((total, activity) => {
     return total + activity.minutes;
   }, 0);
   
   const totalProductiveTime = activities
     .filter(a => a.type === 'study' || a.type === 'sports')
-    .reduce((total, activity) => total + activity.minutes, 0);
-  
-  const totalWastedTime = activities
-    .filter(a => a.type === 'wasted')
     .reduce((total, activity) => total + activity.minutes, 0);
   
   const studyTime = activities
@@ -36,6 +46,18 @@ const Profile = () => {
   const sportsTime = activities
     .filter(a => a.type === 'sports')
     .reduce((total, activity) => total + activity.minutes, 0);
+  
+  const recoveryTime = activities
+    .filter(a => a.type === 'recovery')
+    .reduce((total, activity) => total + activity.minutes, 0);
+  
+  const totalWastedTime = activities
+    .filter(a => a.type === 'wasted')
+    .reduce((total, activity) => total + activity.minutes, 0);
+  
+  // Calculate max streak (this would typically come from historical data)
+  // For demo purposes, we'll assume max streak is either current streak or a hardcoded value
+  const maxStreak = Math.max(stats.streak, 7); // Replace 7 with actual max streak from your data
   
   const formatTime = (minutes: number) => {
     if (minutes < 60) {
@@ -51,6 +73,27 @@ const Profile = () => {
     
     return `${hours} ${hours === 1 ? 'hour' : 'hours'}, ${remainingMinutes} mins`;
   };
+  
+  // Stat item component to maintain consistent styling
+  const StatItem = ({ 
+    icon, 
+    label, 
+    value, 
+    labelColor = 'text-gray-400' 
+  }: { 
+    icon: React.ReactNode, 
+    label: string, 
+    value: string,
+    labelColor?: string
+  }) => (
+    <div className="flex justify-between items-center">
+      <div className="flex items-center">
+        <span className={`mr-2 ${labelColor}`}>{icon}</span>
+        <span className={labelColor}>{label}:</span>
+      </div>
+      <span className="text-white">{value}</span>
+    </div>
+  );
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,40 +157,73 @@ const Profile = () => {
                 <h3 className="text-lg font-semibold mb-4 text-white">Your Stats</h3>
                 
                 <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Total Time Tracked:</span>
-                    <span className="text-white">{formatTime(totalTimeSpent)}</span>
-                  </div>
+                  {/* Stats organized in requested order with color coding */}
+                  <StatItem 
+                    icon={<Clock className="w-4 h-4" />} 
+                    label="Total Time Tracked" 
+                    value={formatTime(totalTimeSpent)}
+                    labelColor="text-cyber-blue"
+                  />
                   
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Productive Time:</span>
-                    <span className="text-cyber-blue">{formatTime(totalProductiveTime)}</span>
-                  </div>
+                  <StatItem 
+                    icon={<Activity className="w-4 h-4" />} 
+                    label="Productive Time" 
+                    value={formatTime(totalProductiveTime)}
+                    labelColor="text-cyber-blue"
+                  />
                   
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Study Time:</span>
-                    <span className="text-cyber-blue">{formatTime(studyTime)}</span>
-                  </div>
+                  <StatItem 
+                    icon={<BookOpen className="w-4 h-4" />} 
+                    label="Study Time" 
+                    value={formatTime(studyTime)}
+                    labelColor="text-cyber-blue"
+                  />
                   
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Sports Time:</span>
-                    <span className="text-cyber-purple">{formatTime(sportsTime)}</span>
-                  </div>
+                  <StatItem 
+                    icon={<Activity className="w-4 h-4" />} 
+                    label="Sports Time" 
+                    value={formatTime(sportsTime)}
+                    labelColor="text-cyber-purple"
+                  />
                   
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Wasted Time:</span>
-                    <span className="text-cyber-red">{formatTime(totalWastedTime)}</span>
-                  </div>
+                  <StatItem 
+                    icon={<Heart className="w-4 h-4" />} 
+                    label="Recovery Time" 
+                    value={formatTime(recoveryTime)}
+                    labelColor="text-green-400"
+                  />
                   
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Current Streak:</span>
-                    <span className="text-yellow-400">{stats.streak} days</span>
-                  </div>
+                  <StatItem 
+                    icon={<Flame className="w-4 h-4" />} 
+                    label="Wasted Time" 
+                    value={formatTime(totalWastedTime)}
+                    labelColor="text-cyber-red"
+                  />
                   
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Total XP:</span>
-                    <span className="text-white">{stats.xp.toLocaleString()} XP</span>
-                  </div>
+                  <div className="border-t border-gray-800 my-2"></div>
+                  
+                  <StatItem 
+                    icon={<TrendingUp className="w-4 h-4" />} 
+                    label="Current Streak" 
+                    value={`${stats.streak} days`}
+                    labelColor="text-yellow-400"
+                  />
+                  
+                  <StatItem 
+                    icon={<Trophy className="w-4 h-4" />} 
+                    label="Max Streak" 
+                    value={`${maxStreak} days`}
+                    labelColor="text-yellow-400"
+                  />
+                  
+                  <div className="border-t border-gray-800 my-2"></div>
+                  
+                  <StatItem 
+                    icon={<Award className="w-4 h-4" />} 
+                    label="Total XP" 
+                    value={`${stats.xp.toLocaleString()} XP`}
+                    labelColor="text-cyber-blue"
+                  />
                 </div>
               </div>
             </div>
