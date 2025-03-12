@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { useGame } from '@/context/GameContext';
 import { getCurrentRank, getNextRank, getProgressToNextRank, levelWithinRank } from '@/utils/ranks';
 import ProgressBar from '@/components/ui/ProgressBar';
-import { AlarmTriangle, Heart } from 'lucide-react';
+import { AlertTriangle, Heart } from 'lucide-react';
 import { toast } from 'sonner';
 
 const StatsCard = () => {
@@ -79,7 +78,7 @@ const StatsCard = () => {
         {isCriticalHP && (
           <div className={`p-3 mt-2 mb-1 border ${stats.hp === 0 ? 'border-cyber-red animate-pulse' : 'border-yellow-600'} rounded-md flex items-center justify-between bg-black/40`}>
             <div className="flex items-center">
-              <AlarmTriangle className={`${stats.hp === 0 ? 'text-cyber-red' : 'text-yellow-500'} w-5 h-5 mr-2`} />
+              <AlertTriangle className={`${stats.hp === 0 ? 'text-cyber-red' : 'text-yellow-500'} w-5 h-5 mr-2`} />
               <div>
                 <div className={`text-sm font-medium ${stats.hp === 0 ? 'text-cyber-red' : 'text-yellow-500'}`}>
                   {stats.hp === 0 ? 'CRITICAL DAMAGE!' : 'Low Energy Warning'}
