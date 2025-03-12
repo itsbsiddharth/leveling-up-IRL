@@ -14,11 +14,14 @@ const Achievements = () => {
   const { percentage } = getProgressToNextRank(stats.xp);
   const currentRankRef = useRef<HTMLDivElement>(null);
   
-  // Sort ranks into categories
-  const aspirationalRanks = ranks.filter(rank => rank.xpRequired > stats.xp);
-  const achievedRanks = ranks.filter(rank => 
-    rank.xpRequired <= stats.xp && rank.id !== currentRank.id
-  ).sort((a, b) => b.xpRequired - a.xpRequired); // Sort by highest XP first
+  // Sort ranks from highest to lowest
+  const allRanks = [...ranks].sort((a, b) => b.xpRequired - a.xpRequired);
+  
+  // Categorize ranks based on current position
+  const higherRanks = allRanks.filter(rank => rank.xpRequired > stats.xp);
+  const lowerRanks = allRanks.filter(rank => 
+    rank.xpRequired < currentRank.xpRequired
+  ).sort((a, b) => b.xpRequired - a.xpRequired); // Keep highest XP first
   
   useEffect(() => {
     // Scroll to the current rank on initial load with a slight delay for animation
@@ -55,7 +58,7 @@ const Achievements = () => {
             <div className="flex justify-center space-x-6 mb-2">
               <button 
                 onClick={() => {
-                  if (aspirationalRanks.length > 0) {
+                  if (higherRanks.length > 0) {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   } else {
                     toast.info("You've already reached the highest rank!");
@@ -64,7 +67,7 @@ const Achievements = () => {
                 className="flex flex-col items-center text-gray-400 hover:text-cyber-blue transition-colors"
               >
                 <ChevronUp className="w-6 h-6" />
-                <span className="text-xs">Locked Ranks</span>
+                <span className="text-xs">Higher Ranks</span>
               </button>
               
               <button 
@@ -77,28 +80,28 @@ const Achievements = () => {
               
               <button 
                 onClick={() => {
-                  if (achievedRanks.length > 0) {
+                  if (lowerRanks.length > 0) {
                     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
                   } else {
-                    toast.info("You don't have any previously achieved ranks yet!");
+                    toast.info("You don't have any lower ranks to view!");
                   }
                 }}
                 className="flex flex-col items-center text-gray-400 hover:text-cyber-blue transition-colors"
               >
                 <ChevronDown className="w-6 h-6" />
-                <span className="text-xs">Achieved Ranks</span>
+                <span className="text-xs">Lower Ranks</span>
               </button>
             </div>
           </div>
           
-          {/* Aspirational (locked) ranks section */}
-          {aspirationalRanks.length > 0 && (
+          {/* Higher locked ranks section (above current) */}
+          {higherRanks.length > 0 && (
             <div className="mb-10">
               <h2 className="text-sm uppercase tracking-wider text-gray-500 mb-3 text-center">
-                Locked Ranks
+                Higher Ranks
               </h2>
               <div className="space-y-4">
-                {aspirationalRanks.map((rank) => (
+                {higherRanks.map((rank) => (
                   <RankCard 
                     key={rank.id}
                     rank={rank}
@@ -125,18 +128,18 @@ const Achievements = () => {
             />
           </div>
           
-          {/* Previously achieved ranks section */}
-          {achievedRanks.length > 0 && (
+          {/* Lower ranks section (below current) */}
+          {lowerRanks.length > 0 && (
             <div>
               <h2 className="text-sm uppercase tracking-wider text-gray-500 mb-3 text-center">
-                Achieved Ranks
+                Lower Ranks
               </h2>
               <div className="space-y-4">
-                {achievedRanks.map((rank) => (
+                {lowerRanks.map((rank) => (
                   <RankCard 
                     key={rank.id}
                     rank={rank}
-                    isUnlocked={true}
+                    isUnlocked={stats.xp >= rank.xpRequired}
                     isActive={false}
                     progress={100}
                   />
