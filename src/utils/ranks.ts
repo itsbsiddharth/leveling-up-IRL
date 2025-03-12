@@ -14,7 +14,11 @@ export const ranks: Rank[] = [
     title: 'E-Rank Hunter',
     xpRequired: 0,
     color: 'blue',
-    benefits: ['Basic timer functionality', 'XP tracking'],
+    benefits: [
+      'Basic timer functionality', 
+      'XP tracking',
+      'Basic HP recovery (5 HP per 30 min)'
+    ],
     description: 'A novice just beginning their journey.',
   },
   {
@@ -22,7 +26,11 @@ export const ranks: Rank[] = [
     title: 'D-Rank Hunter',
     xpRequired: 1000,
     color: 'blue',
-    benefits: ['Streak bonuses', 'Basic items'],
+    benefits: [
+      'Streak bonuses', 
+      'Basic items',
+      'Recovery challenges (+15 HP)'
+    ],
     description: 'Shows potential with consistent effort.',
   },
   {
@@ -30,7 +38,11 @@ export const ranks: Rank[] = [
     title: 'C-Rank Hunter',
     xpRequired: 3000,
     color: 'blue',
-    benefits: ['HP recovery items', 'Custom categories'],
+    benefits: [
+      'Enhanced HP recovery (8 HP per 30 min)', 
+      'Custom categories',
+      'Passive HP regeneration'
+    ],
     description: 'A reliable hunter with growing skills.',
   },
   {
@@ -38,7 +50,11 @@ export const ranks: Rank[] = [
     title: 'B-Rank Hunter',
     xpRequired: 6000,
     color: 'purple',
-    benefits: ['Enhanced XP gains', 'Special items'],
+    benefits: [
+      'Enhanced XP gains', 
+      'Special items',
+      'HP restoration items'
+    ],
     description: 'Recognized for dedication and consistent results.',
   },
   {
@@ -46,7 +62,11 @@ export const ranks: Rank[] = [
     title: 'A-Rank Hunter',
     xpRequired: 10000,
     color: 'purple',
-    benefits: ['Superior streak bonuses', 'Rare artifacts'],
+    benefits: [
+      'Superior streak bonuses', 
+      'Rare artifacts',
+      'Advanced recovery techniques (+20 HP)'
+    ],
     description: 'Elite status with impressive achievements.',
   },
   {
@@ -54,7 +74,11 @@ export const ranks: Rank[] = [
     title: 'S-Rank Hunter',
     xpRequired: 15000,
     color: 'red',
-    benefits: ['Legendary items', 'Maximum efficiency'],
+    benefits: [
+      'Legendary items', 
+      'Maximum efficiency',
+      'Master recovery (full HP restoration)'
+    ],
     description: 'Legendary hunter of extraordinary capability.',
   },
 ];

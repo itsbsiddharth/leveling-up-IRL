@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { useGame } from '@/context/GameContext';
-import { Play, Pause, RotateCcw, Save } from 'lucide-react';
+import { Play, Pause, RotateCcw, Save, BookOpen, Dumbbell, Clock, Heart } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TimerControl = () => {
@@ -13,8 +14,9 @@ const TimerControl = () => {
     logActivity 
   } = useGame();
   
-  const [activeCategory, setActiveCategory] = useState<'study' | 'sports' | 'wasted'>('study');
+  const [activeCategory, setActiveCategory] = useState<'study' | 'sports' | 'wasted' | 'recovery'>('study');
   const [manualMinutes, setManualMinutes] = useState<string>('');
+  const [isHighQuality, setIsHighQuality] = useState<boolean>(false);
   
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -30,12 +32,16 @@ const TimerControl = () => {
     }
   };
   
-  const handleCategoryChange = (category: 'study' | 'sports' | 'wasted') => {
+  const handleCategoryChange = (category: 'study' | 'sports' | 'wasted' | 'recovery') => {
     if (activeTimer.isRunning) {
       toast.error("Stop the timer before changing category");
       return;
     }
     setActiveCategory(category);
+    // Reset high quality flag when changing categories
+    if (category === 'wasted' || category === 'recovery') {
+      setIsHighQuality(false);
+    }
   };
   
   const handleStartTimer = () => {
@@ -79,10 +85,29 @@ const TimerControl = () => {
     }
     
     // Log the activity
-    logActivity(activeCategory, minutesToLog);
+    logActivity(activeCategory, minutesToLog, isHighQuality);
     
-    // Reset manual input
+    // Reset manual input and high quality flag
     setManualMinutes('');
+    setIsHighQuality(false);
+  };
+  
+  const getCategoryColor = () => {
+    switch (activeCategory) {
+      case 'study': return 'text-cyber-blue border-cyber-blue';
+      case 'sports': return 'text-cyber-purple border-cyber-purple';
+      case 'wasted': return 'text-cyber-red border-cyber-red';
+      case 'recovery': return 'text-green-400 border-green-400';
+    }
+  };
+  
+  const getCategoryIcon = () => {
+    switch (activeCategory) {
+      case 'study': return <BookOpen className="w-5 h-5" />;
+      case 'sports': return <Dumbbell className="w-5 h-5" />;
+      case 'wasted': return <Clock className="w-5 h-5" />;
+      case 'recovery': return <Heart className="w-5 h-5" />;
+    }
   };
   
   return (
@@ -93,7 +118,7 @@ const TimerControl = () => {
           <p className="text-sm text-gray-400">Log activities to gain XP or track wasted time</p>
         </div>
         
-        <div className="grid grid-cols-3 gap-2 mb-6">
+        <div className="grid grid-cols-4 gap-2 mb-6">
           <button
             onClick={() => handleCategoryChange('study')}
             className={`p-3 rounded-md transition duration-200 ${
@@ -102,7 +127,10 @@ const TimerControl = () => {
                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
             }`}
           >
-            <div className="text-sm font-medium">Study</div>
+            <div className="flex flex-col items-center">
+              <BookOpen className="w-5 h-5 mb-1" />
+              <div className="text-xs font-medium">Study</div>
+            </div>
           </button>
           
           <button
@@ -113,7 +141,10 @@ const TimerControl = () => {
                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
             }`}
           >
-            <div className="text-sm font-medium">Sports</div>
+            <div className="flex flex-col items-center">
+              <Dumbbell className="w-5 h-5 mb-1" />
+              <div className="text-xs font-medium">Sports</div>
+            </div>
           </button>
           
           <button
@@ -124,12 +155,33 @@ const TimerControl = () => {
                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
             }`}
           >
-            <div className="text-sm font-medium">Wasted</div>
+            <div className="flex flex-col items-center">
+              <Clock className="w-5 h-5 mb-1" />
+              <div className="text-xs font-medium">Wasted</div>
+            </div>
+          </button>
+          
+          <button
+            onClick={() => handleCategoryChange('recovery')}
+            className={`p-3 rounded-md transition duration-200 ${
+              activeCategory === 'recovery' 
+                ? 'cyber-panel border-green-400 text-green-400'
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            <div className="flex flex-col items-center">
+              <Heart className="w-5 h-5 mb-1" />
+              <div className="text-xs font-medium">Recovery</div>
+            </div>
           </button>
         </div>
         
         <div className="text-center mb-8">
-          <div className="text-4xl font-mono cyber-text-glow text-cyber-blue">
+          <div className={`text-4xl font-mono cyber-text-glow ${
+            activeCategory === 'study' ? 'text-cyber-blue' :
+            activeCategory === 'sports' ? 'text-cyber-purple' :
+            activeCategory === 'wasted' ? 'text-cyber-red' : 'text-green-400'
+          }`}>
             {formatTime(activeTimer.elapsedTime)}
           </div>
         </div>
@@ -139,7 +191,12 @@ const TimerControl = () => {
             <>
               <button
                 onClick={activeTimer.elapsedTime > 0 ? handleResumeTimer : handleStartTimer}
-                className="cyber-panel p-3 rounded-full w-12 h-12 flex items-center justify-center text-cyber-blue border-cyber-blue/50 hover:border-cyber-blue"
+                className={`cyber-panel p-3 rounded-full w-12 h-12 flex items-center justify-center ${
+                  activeCategory === 'study' ? 'text-cyber-blue border-cyber-blue/50 hover:border-cyber-blue' :
+                  activeCategory === 'sports' ? 'text-cyber-purple border-cyber-purple/50 hover:border-cyber-purple' :
+                  activeCategory === 'wasted' ? 'text-cyber-red border-cyber-red/50 hover:border-cyber-red' :
+                  'text-green-400 border-green-400/50 hover:border-green-400'
+                }`}
               >
                 <Play className="w-6 h-6" />
               </button>
@@ -157,7 +214,12 @@ const TimerControl = () => {
             <>
               <button
                 onClick={handlePauseTimer}
-                className="cyber-panel p-3 rounded-full w-12 h-12 flex items-center justify-center text-cyber-purple border-cyber-purple/50 hover:border-cyber-purple"
+                className={`cyber-panel p-3 rounded-full w-12 h-12 flex items-center justify-center ${
+                  activeCategory === 'study' ? 'text-cyber-blue border-cyber-blue/50 hover:border-cyber-blue' :
+                  activeCategory === 'sports' ? 'text-cyber-purple border-cyber-purple/50 hover:border-cyber-purple' :
+                  activeCategory === 'wasted' ? 'text-cyber-red border-cyber-red/50 hover:border-cyber-red' :
+                  'text-green-400 border-green-400/50 hover:border-green-400'
+                }`}
               >
                 <Pause className="w-6 h-6" />
               </button>
@@ -173,6 +235,21 @@ const TimerControl = () => {
         </div>
         
         <div className="space-y-4">
+          {(activeCategory === 'study' || activeCategory === 'sports') && (
+            <div className="flex items-center">
+              <input
+                id="highQuality"
+                type="checkbox"
+                checked={isHighQuality}
+                onChange={() => setIsHighQuality(!isHighQuality)}
+                className="h-4 w-4 text-blue-600 border-gray-700 rounded bg-black/30"
+              />
+              <label htmlFor="highQuality" className="ml-2 text-sm text-gray-300">
+                Mark as high-quality session (+10% XP)
+              </label>
+            </div>
+          )}
+          
           <div>
             <label htmlFor="manualTime" className="block text-sm text-gray-400 mb-1">
               Or enter time manually (minutes)
@@ -189,10 +266,13 @@ const TimerControl = () => {
           
           <button
             onClick={handleLogSession}
-            className="w-full cyber-panel py-3 px-4 rounded-md flex items-center justify-center space-x-2 text-cyber-blue border-cyber-blue/50 hover:border-cyber-blue"
+            className={`w-full cyber-panel py-3 px-4 rounded-md flex items-center justify-center space-x-2 ${getCategoryColor()}`}
           >
             <Save className="w-5 h-5" />
-            <span>Log Session</span>
+            <span className="flex items-center">
+              {getCategoryIcon()}
+              <span className="ml-2">Log Session</span>
+            </span>
           </button>
         </div>
       </div>

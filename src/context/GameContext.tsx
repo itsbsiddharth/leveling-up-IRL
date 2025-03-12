@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { getCurrentRank, getNextRank, getProgressToNextRank, levelWithinRank } from '@/utils/ranks';
 
-export type ActivityType = 'study' | 'sports' | 'wasted';
+export type ActivityType = 'study' | 'sports' | 'wasted' | 'recovery';
 
 export interface Activity {
   id: string;
@@ -12,6 +12,8 @@ export interface Activity {
   timestamp: string;
   xpGained?: number;
   hpLost?: number;
+  hpGained?: number;
+  isHighQuality?: boolean;
 }
 
 interface GameStats {
@@ -30,13 +32,15 @@ interface GameContextType {
     startTime: number | null;
     elapsedTime: number;
   };
-  logActivity: (type: ActivityType, minutes: number) => void;
+  logActivity: (type: ActivityType, minutes: number, isHighQuality?: boolean) => void;
   startTimer: (type: ActivityType) => void;
   pauseTimer: () => void;
   resumeTimer: () => void;
   resetTimer: () => void;
-  getXpForActivity: (minutes: number) => number;
+  getXpForActivity: (minutes: number, isHighQuality?: boolean) => number;
   getHpForWastedTime: (minutes: number) => number;
+  getHpForRecovery: (minutes: number) => number;
+  completeRecoveryChallenge: (hpAmount: number) => void;
 }
 
 const defaultStats: GameStats = {
@@ -62,6 +66,8 @@ const defaultContext: GameContextType = {
   resetTimer: () => {},
   getXpForActivity: () => 0,
   getHpForWastedTime: () => 0,
+  getHpForRecovery: () => 0,
+  completeRecoveryChallenge: () => {},
 };
 
 const GameContext = createContext<GameContextType>(defaultContext);
@@ -158,31 +164,90 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return streakBonus;
   };
   
-  const getXpForActivity = (minutes: number) => {
+  const getXpForActivity = (minutes: number, isHighQuality = false) => {
     // Base XP: 10 XP per 30 minutes
     const baseXp = Math.floor(minutes / 30) * 10;
     
     // Apply streak bonus
-    const bonus = getStreakBonus();
-    const totalXp = Math.floor(baseXp * (1 + bonus));
+    const streakBonus = getStreakBonus();
+    
+    // Apply quality bonus (10% extra for high-quality sessions)
+    const qualityBonus = isHighQuality ? 0.1 : 0;
+    
+    // Calculate total XP with all bonuses
+    const totalXp = Math.floor(baseXp * (1 + streakBonus + qualityBonus));
     
     return totalXp;
   };
   
   const getHpForWastedTime = (minutes: number) => {
-    // 5 HP per 30 minutes of wasted time
+    // Get today's wasted time before this session
+    const today = new Date().toISOString().split('T')[0];
+    const todayWastedMinutes = activities
+      .filter(a => a.type === 'wasted' && a.timestamp.includes(today))
+      .reduce((total, activity) => total + activity.minutes, 0);
+    
+    // Calculate HP loss with tiered penalty
+    let hpLoss = 0;
+    let remainingMinutes = minutes;
+    let currentTotalWasted = todayWastedMinutes;
+    
+    // Process minutes in 30-minute chunks
+    while (remainingMinutes > 0) {
+      const chunkSize = Math.min(remainingMinutes, 30);
+      const chunkRatio = chunkSize / 30; // For partial chunks
+      
+      // Standard rate: 5 HP per 30 minutes
+      let ratePerThirtyMinutes = 5;
+      
+      // Tier 1: After 1 hour (60 minutes), increase to 7 HP per 30 minutes
+      if (currentTotalWasted >= 60) {
+        ratePerThirtyMinutes = 7;
+      }
+      
+      // Tier 2: After 2 hours (120 minutes), increase to 10 HP per 30 minutes
+      if (currentTotalWasted >= 120) {
+        ratePerThirtyMinutes = 10;
+      }
+      
+      // Calculate HP loss for this chunk
+      const chunkLoss = Math.round(ratePerThirtyMinutes * chunkRatio);
+      hpLoss += chunkLoss;
+      
+      // Update for next iteration
+      remainingMinutes -= chunkSize;
+      currentTotalWasted += chunkSize;
+    }
+    
+    return hpLoss;
+  };
+  
+  const getHpForRecovery = (minutes: number) => {
+    // 5 HP per 30 minutes of recovery activity
     return Math.floor(minutes / 30) * 5;
   };
   
-  const logActivity = (type: ActivityType, minutes: number) => {
+  const completeRecoveryChallenge = (hpAmount: number) => {
+    setStats(prev => ({
+      ...prev,
+      hp: Math.min(prev.hp + hpAmount, 100) // Cap at maximum HP
+    }));
+    
+    toast.success(`+${hpAmount} HP recovered!`, {
+      description: "Recovery challenge completed successfully."
+    });
+  };
+  
+  const logActivity = (type: ActivityType, minutes: number, isHighQuality = false) => {
     const today = new Date().toISOString();
     const todayDate = today.split('T')[0];
     let xpGained = 0;
     let hpLost = 0;
+    let hpGained = 0;
     
     // Calculate XP or HP changes
     if (type === 'study' || type === 'sports') {
-      xpGained = getXpForActivity(minutes);
+      xpGained = getXpForActivity(minutes, isHighQuality);
       
       // Update stats
       setStats(prev => ({
@@ -201,20 +266,46 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       toast.success(`+${xpGained} XP gained!`, {
-        description: `Logged ${minutes} minutes of ${type}.`
+        description: `Logged ${minutes} minutes of ${type}${isHighQuality ? ' (high quality)' : ''}.`
       });
     } else if (type === 'wasted') {
       hpLost = getHpForWastedTime(minutes);
       
-      setStats(prev => ({
-        ...prev,
-        hp: Math.max(prev.hp - hpLost, 0), // Prevent HP from going below 0
-        lastActive: todayDate,
-      }));
+      // Update stats
+      setStats(prev => {
+        const newHp = Math.max(prev.hp - hpLost, 0);
+        const wasAtZero = newHp === 0 && prev.hp > 0;
+        
+        if (wasAtZero) {
+          toast.error(`CRITICAL DAMAGE: Your energy is depleted!`, {
+            description: "Complete a recovery activity to restore your HP."
+          });
+        }
+        
+        return {
+          ...prev,
+          hp: newHp,
+          lastActive: todayDate,
+        };
+      });
       
       if (hpLost > 0) {
         toast.error(`-${hpLost} HP lost!`, {
           description: `Logged ${minutes} minutes of wasted time.`
+        });
+      }
+    } else if (type === 'recovery') {
+      hpGained = getHpForRecovery(minutes);
+      
+      setStats(prev => ({
+        ...prev,
+        hp: Math.min(prev.hp + hpGained, 100), // Cap at maximum HP
+        lastActive: todayDate,
+      }));
+      
+      if (hpGained > 0) {
+        toast.success(`+${hpGained} HP recovered!`, {
+          description: `Logged ${minutes} minutes of recovery time.`
         });
       }
     }
@@ -227,6 +318,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       timestamp: today,
       ...(xpGained ? { xpGained } : {}),
       ...(hpLost ? { hpLost } : {}),
+      ...(hpGained ? { hpGained } : {}),
+      ...(isHighQuality ? { isHighQuality: true } : {}),
     };
     
     setActivities(prev => [newActivity, ...prev]);
@@ -290,6 +383,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetTimer,
         getXpForActivity,
         getHpForWastedTime,
+        getHpForRecovery,
+        completeRecoveryChallenge,
       }}
     >
       {children}
