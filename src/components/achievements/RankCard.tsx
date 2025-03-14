@@ -1,10 +1,9 @@
-
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import { Rank } from '@/utils/ranks';
 import { useGame } from '@/context/GameContext';
 import { Lock, CheckCircle, ChevronDown, ChevronUp, Trophy, Heart } from 'lucide-react';
 import ProgressBar from '@/components/ui/ProgressBar';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 
 interface RankCardProps {
   rank: Rank;
@@ -13,11 +12,12 @@ interface RankCardProps {
   progress?: number;
 }
 
-const RankCard = ({ rank, isUnlocked, isActive, progress = 0 }: RankCardProps) => {
+// Memoize the component to prevent unnecessary re-renders
+const RankCard = memo(({ rank, isUnlocked, isActive, progress = 0 }: RankCardProps) => {
   const [expanded, setExpanded] = useState(isActive);
   
   // Define color schemes based on rank color and status
-  const getColorScheme = () => {
+  const getColorScheme = useCallback(() => {
     if (!isUnlocked) {
       return 'border-gray-700/50 bg-black/40'; // Locked ranks
     }
@@ -32,9 +32,9 @@ const RankCard = ({ rank, isUnlocked, isActive, progress = 0 }: RankCardProps) =
       default: 
         return 'border-cyber-blue/70';
     }
-  };
+  }, [isUnlocked, rank.color]);
   
-  const getTitleColor = () => {
+  const getTitleColor = useCallback(() => {
     if (!isUnlocked) {
       return 'text-gray-400';
     }
@@ -49,44 +49,48 @@ const RankCard = ({ rank, isUnlocked, isActive, progress = 0 }: RankCardProps) =
       default: 
         return 'text-cyber-blue';
     }
-  };
+  }, [isUnlocked, rank.color]);
   
-  const getBenefitStyles = () => {
+  const getBenefitStyles = useCallback(() => {
     if (!isUnlocked) {
       return 'blur-sm text-gray-600';
     }
     return 'text-gray-300';
-  };
+  }, [isUnlocked]);
 
   // Check if recovery benefits are available
-  const hasRecoveryBenefits = (benefits: string[]) => {
+  const hasRecoveryBenefits = useCallback((benefits: string[]) => {
     return benefits.some(benefit => 
       benefit.toLowerCase().includes('recovery') || 
       benefit.toLowerCase().includes('hp') || 
       benefit.toLowerCase().includes('health')
     );
+  }, []);
+
+  // Toggle expanded state
+  const toggleExpanded = useCallback(() => {
+    setExpanded(!expanded);
+  }, [expanded]);
+
+  // Simplified motion variants
+  const contentVariants = {
+    hidden: { opacity: 0, height: 0 },
+    visible: { opacity: 1, height: 'auto' }
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ 
-        opacity: 1, 
-        y: 0,
-        scale: isActive ? 1.02 : 1
-      }}
-      transition={{ duration: 0.4 }}
-      className={`cyber-panel border-2 rounded-lg transition-all duration-300 ${
+    <div 
+      className={`cyber-panel border-2 rounded-lg transition-colors ${
         isActive 
-          ? 'animate-pulse-glow shadow-lg' 
+          ? 'shadow-lg' 
           : isUnlocked 
             ? 'opacity-90 hover:opacity-100' 
-            : 'opacity-50 hover:opacity-60'
+            : 'opacity-60 hover:opacity-70'
       } ${getColorScheme()}`}
     >
       <div 
         className="p-4 cursor-pointer"
-        onClick={() => setExpanded(!expanded)}
+        onClick={toggleExpanded}
       >
         <div className="flex justify-between items-start">
           <div>
@@ -95,7 +99,7 @@ const RankCard = ({ rank, isUnlocked, isActive, progress = 0 }: RankCardProps) =
                 <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
               )}
               {isActive && (
-                <Trophy className="w-4 h-4 text-yellow-400 mr-2 animate-pulse" />
+                <Trophy className="w-4 h-4 text-yellow-400 mr-2" />
               )}
               <h3 className={`text-lg font-semibold ${getTitleColor()}`}>
                 {rank.title}
@@ -138,11 +142,12 @@ const RankCard = ({ rank, isUnlocked, isActive, progress = 0 }: RankCardProps) =
       </div>
       
       {expanded && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.3 }}
+        <m.div
+          variants={contentVariants}
+          initial="hidden"
+          animate="visible"
+          exit="hidden"
+          transition={{ duration: 0.2 }}
           className="px-4 pb-4"
         >
           <div className="h-px bg-gray-800 mb-3" />
@@ -173,10 +178,12 @@ const RankCard = ({ rank, isUnlocked, isActive, progress = 0 }: RankCardProps) =
               </span>
             )}
           </div>
-        </motion.div>
+        </m.div>
       )}
-    </motion.div>
+    </div>
   );
-};
+});
+
+RankCard.displayName = 'RankCard';
 
 export default RankCard;

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { getCurrentRank, getNextRank, getProgressToNextRank, levelWithinRank } from '@/utils/ranks';
@@ -109,25 +108,25 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   // Update elapsed time while timer is running
   useEffect(() => {
-    let interval: number | undefined;
+    let intervalId: number | undefined;
     
-    if (activeTimer.isRunning && activeTimer.startTime) {
-      interval = window.setInterval(() => {
-        const currentElapsedTime = Math.floor(
-          (Date.now() - activeTimer.startTime + activeTimer.elapsedTime) / 1000
-        );
-        
-        setActiveTimer(prev => ({
-          ...prev,
-          elapsedTime: currentElapsedTime,
-        }));
+    if (activeTimer.isRunning && activeTimer.startTime !== null) {
+      // Set the interval to update every second
+      intervalId = window.setInterval(() => {
+        setActiveTimer(prev => {
+          if (!prev.isRunning || prev.startTime === null) return prev;
+          return {
+            ...prev,
+            elapsedTime: prev.elapsedTime + 1  // Increment by exactly 1 second each tick
+          };
+        });
       }, 1000);
     }
     
     return () => {
-      if (interval) clearInterval(interval);
+      if (intervalId) clearInterval(intervalId);
     };
-  }, [activeTimer.isRunning, activeTimer.startTime, activeTimer.elapsedTime]);
+  }, [activeTimer.isRunning, activeTimer.startTime]);
   
   const updateStreak = () => {
     if (!stats.lastActive) return;
@@ -339,17 +338,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   const pauseTimer = () => {
-    if (!activeTimer.isRunning || activeTimer.startTime === null) return;
-    
-    const currentElapsedSeconds = Math.floor(
-      (Date.now() - activeTimer.startTime + activeTimer.elapsedTime)
-    );
+    if (!activeTimer.isRunning) return;
     
     setActiveTimer(prev => ({
       ...prev,
       isRunning: false,
       startTime: null,
-      elapsedTime: currentElapsedSeconds,
+      // Keep the current elapsedTime as is, no calculations needed
     }));
   };
   
