@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
+import { User as FirebaseUser, onAuthStateChanged, updateProfile } from 'firebase/auth';
 import { auth } from '../firebase';
 import { 
   signInWithGoogle, 
@@ -22,6 +22,7 @@ interface AuthContextType {
   sendPasswordlessEmail: (email: string) => Promise<void>;
   completePasswordlessSignIn: (email?: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUsername: (newName: string) => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
@@ -33,6 +34,7 @@ const AuthContext = createContext<AuthContextType>({
   sendPasswordlessEmail: async () => {},
   completePasswordlessSignIn: async () => {},
   logout: async () => {},
+  updateUsername: async () => {},
   isLoading: false,
   error: null,
 });
@@ -132,6 +134,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUsername = async (newName: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      if (!firebaseUser) {
+        throw new Error('No user is signed in');
+      }
+      
+      await updateProfile(firebaseUser, { displayName: newName });
+      
+      // Update the current user state
+      setCurrentUser(prev => prev ? { ...prev, name: newName } : null);
+      
+      setIsLoading(false);
+    } catch (error) {
+      setIsLoading(false);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update username';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       currentUser, 
@@ -140,6 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sendPasswordlessEmail, 
       completePasswordlessSignIn, 
       logout, 
+      updateUsername,
       isLoading, 
       error 
     }}>

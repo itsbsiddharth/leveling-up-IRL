@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useGame } from '@/context/GameContext';
 import { Play, Pause, RotateCcw, Save, BookOpen, Dumbbell, Clock, Heart } from 'lucide-react';
@@ -14,7 +13,7 @@ const TimerControl = () => {
     logActivity 
   } = useGame();
   
-  const [activeCategory, setActiveCategory] = useState<'study' | 'sports' | 'wasted' | 'recovery'>('study');
+  const [activeCategory, setActiveCategory] = useState<'intellectual' | 'physical' | 'distractions' | 'recovery'>('intellectual');
   const [manualMinutes, setManualMinutes] = useState<string>('');
   const [isHighQuality, setIsHighQuality] = useState<boolean>(false);
   
@@ -32,14 +31,19 @@ const TimerControl = () => {
     }
   };
   
-  const handleCategoryChange = (category: 'study' | 'sports' | 'wasted' | 'recovery') => {
+  const handleCategoryChange = (category: 'intellectual' | 'physical' | 'distractions' | 'recovery') => {
+    // If timer is running, automatically stop it before changing category
     if (activeTimer.isRunning) {
-      toast.error("Stop the timer before changing category");
-      return;
+      resetTimer();
+      // Display a more informative toast that doesn't feel like an error
+      toast.info("Timer reset and activity changed");
     }
+    
+    // Change the category immediately
     setActiveCategory(category);
+    
     // Reset high quality flag when changing categories
-    if (category === 'wasted' || category === 'recovery') {
+    if (category === 'distractions' || category === 'recovery') {
       setIsHighQuality(false);
     }
   };
@@ -71,16 +75,22 @@ const TimerControl = () => {
   const handleLogSession = () => {
     let minutesToLog = 0;
     
-    if (manualMinutes && parseInt(manualMinutes) > 0) {
-      // Use manual input if provided
+    if (manualMinutes && parseInt(manualMinutes) >= 0) {
+      // Use manual input if provided (allow even 0 minutes)
       minutesToLog = parseInt(manualMinutes);
     } else if (activeTimer.elapsedTime > 0) {
-      // Otherwise use the timer
-      minutesToLog = Math.ceil(activeTimer.elapsedTime / 60);
+      // Use the timer value - convert seconds to minutes, preserving even small values
+      minutesToLog = Math.max(1, Math.round(activeTimer.elapsedTime / 60));
+      
+      // If less than 60 seconds, still log it as 1 minute minimum
+      if (activeTimer.elapsedTime < 60) {
+        minutesToLog = 1;
+      }
     }
     
-    if (minutesToLog <= 0) {
-      toast.error("Please enter a valid time or start the timer");
+    // Always allow logging, even for small values
+    if (minutesToLog < 0) {
+      toast.error("Please enter a valid time");
       return;
     }
     
@@ -94,18 +104,18 @@ const TimerControl = () => {
   
   const getCategoryColor = () => {
     switch (activeCategory) {
-      case 'study': return 'text-cyber-blue border-cyber-blue';
-      case 'sports': return 'text-cyber-purple border-cyber-purple';
-      case 'wasted': return 'text-cyber-red border-cyber-red';
+      case 'intellectual': return 'text-cyber-blue border-cyber-blue';
+      case 'physical': return 'text-cyber-purple border-cyber-purple';
+      case 'distractions': return 'text-cyber-red border-cyber-red';
       case 'recovery': return 'text-green-400 border-green-400';
     }
   };
   
   const getCategoryIcon = () => {
     switch (activeCategory) {
-      case 'study': return <BookOpen className="w-5 h-5" />;
-      case 'sports': return <Dumbbell className="w-5 h-5" />;
-      case 'wasted': return <Clock className="w-5 h-5" />;
+      case 'intellectual': return <BookOpen className="w-5 h-5" />;
+      case 'physical': return <Dumbbell className="w-5 h-5" />;
+      case 'distractions': return <Clock className="w-5 h-5" />;
       case 'recovery': return <Heart className="w-5 h-5" />;
     }
   };
@@ -120,53 +130,53 @@ const TimerControl = () => {
         
         <div className="grid grid-cols-4 gap-2 mb-6">
           <button
-            onClick={() => handleCategoryChange('study')}
-            className={`p-3 rounded-md transition duration-200 ${
-              activeCategory === 'study' 
-                ? 'cyber-panel border-cyber-blue text-cyber-blue'
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            onClick={() => handleCategoryChange('intellectual')}
+            className={`p-3 rounded-md transition duration-150 transform hover:scale-105 active:scale-95 ${
+              activeCategory === 'intellectual' 
+                ? 'cyber-panel border-cyber-blue text-cyber-blue shadow-sm shadow-cyber-blue/30'
+                : 'bg-gray-800/90 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
             }`}
           >
             <div className="flex flex-col items-center">
               <BookOpen className="w-5 h-5 mb-1" />
-              <div className="text-xs font-medium">Study</div>
+              <div className="text-xs font-medium">Intellectual</div>
             </div>
           </button>
           
           <button
-            onClick={() => handleCategoryChange('sports')}
-            className={`p-3 rounded-md transition duration-200 ${
-              activeCategory === 'sports' 
-                ? 'cyber-panel border-cyber-purple text-cyber-purple'
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            onClick={() => handleCategoryChange('physical')}
+            className={`p-3 rounded-md transition duration-150 transform hover:scale-105 active:scale-95 ${
+              activeCategory === 'physical' 
+                ? 'cyber-panel border-cyber-purple text-cyber-purple shadow-sm shadow-cyber-purple/30'
+                : 'bg-gray-800/90 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
             }`}
           >
             <div className="flex flex-col items-center">
               <Dumbbell className="w-5 h-5 mb-1" />
-              <div className="text-xs font-medium">Sports</div>
+              <div className="text-xs font-medium">Physical</div>
             </div>
           </button>
           
           <button
-            onClick={() => handleCategoryChange('wasted')}
-            className={`p-3 rounded-md transition duration-200 ${
-              activeCategory === 'wasted' 
-                ? 'cyber-panel border-cyber-red text-cyber-red'
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            onClick={() => handleCategoryChange('distractions')}
+            className={`p-3 rounded-md transition duration-150 transform hover:scale-105 active:scale-95 ${
+              activeCategory === 'distractions' 
+                ? 'cyber-panel border-cyber-red text-cyber-red shadow-sm shadow-cyber-red/30'
+                : 'bg-gray-800/90 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
             }`}
           >
             <div className="flex flex-col items-center">
               <Clock className="w-5 h-5 mb-1" />
-              <div className="text-xs font-medium">Wasted</div>
+              <div className="text-xs font-medium">Distractions</div>
             </div>
           </button>
           
           <button
             onClick={() => handleCategoryChange('recovery')}
-            className={`p-3 rounded-md transition duration-200 ${
+            className={`p-3 rounded-md transition duration-150 transform hover:scale-105 active:scale-95 ${
               activeCategory === 'recovery' 
-                ? 'cyber-panel border-green-400 text-green-400'
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                ? 'cyber-panel border-green-400 text-green-400 shadow-sm shadow-green-400/30'
+                : 'bg-gray-800/90 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
             }`}
           >
             <div className="flex flex-col items-center">
@@ -178,9 +188,9 @@ const TimerControl = () => {
         
         <div className="text-center mb-8">
           <div className={`text-4xl font-mono cyber-text-glow ${
-            activeCategory === 'study' ? 'text-cyber-blue' :
-            activeCategory === 'sports' ? 'text-cyber-purple' :
-            activeCategory === 'wasted' ? 'text-cyber-red' : 'text-green-400'
+            activeCategory === 'intellectual' ? 'text-cyber-blue' :
+            activeCategory === 'physical' ? 'text-cyber-purple' :
+            activeCategory === 'distractions' ? 'text-cyber-red' : 'text-green-400'
           }`}>
             {formatTime(activeTimer.elapsedTime)}
           </div>
@@ -192,9 +202,9 @@ const TimerControl = () => {
               <button
                 onClick={activeTimer.elapsedTime > 0 ? handleResumeTimer : handleStartTimer}
                 className={`cyber-panel p-3 rounded-full w-12 h-12 flex items-center justify-center ${
-                  activeCategory === 'study' ? 'text-cyber-blue border-cyber-blue/50 hover:border-cyber-blue' :
-                  activeCategory === 'sports' ? 'text-cyber-purple border-cyber-purple/50 hover:border-cyber-purple' :
-                  activeCategory === 'wasted' ? 'text-cyber-red border-cyber-red/50 hover:border-cyber-red' :
+                  activeCategory === 'intellectual' ? 'text-cyber-blue border-cyber-blue/50 hover:border-cyber-blue' :
+                  activeCategory === 'physical' ? 'text-cyber-purple border-cyber-purple/50 hover:border-cyber-purple' :
+                  activeCategory === 'distractions' ? 'text-cyber-red border-cyber-red/50 hover:border-cyber-red' :
                   'text-green-400 border-green-400/50 hover:border-green-400'
                 }`}
               >
@@ -215,9 +225,9 @@ const TimerControl = () => {
               <button
                 onClick={handlePauseTimer}
                 className={`cyber-panel p-3 rounded-full w-12 h-12 flex items-center justify-center ${
-                  activeCategory === 'study' ? 'text-cyber-blue border-cyber-blue/50 hover:border-cyber-blue' :
-                  activeCategory === 'sports' ? 'text-cyber-purple border-cyber-purple/50 hover:border-cyber-purple' :
-                  activeCategory === 'wasted' ? 'text-cyber-red border-cyber-red/50 hover:border-cyber-red' :
+                  activeCategory === 'intellectual' ? 'text-cyber-blue border-cyber-blue/50 hover:border-cyber-blue' :
+                  activeCategory === 'physical' ? 'text-cyber-purple border-cyber-purple/50 hover:border-cyber-purple' :
+                  activeCategory === 'distractions' ? 'text-cyber-red border-cyber-red/50 hover:border-cyber-red' :
                   'text-green-400 border-green-400/50 hover:border-green-400'
                 }`}
               >
@@ -235,7 +245,7 @@ const TimerControl = () => {
         </div>
         
         <div className="space-y-4">
-          {(activeCategory === 'study' || activeCategory === 'sports') && (
+          {(activeCategory === 'intellectual' || activeCategory === 'physical') && (
             <div className="flex items-center">
               <input
                 id="highQuality"

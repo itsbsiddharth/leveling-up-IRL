@@ -22,13 +22,22 @@ import {
 import { toast } from 'sonner';
 
 const Profile = () => {
-  const { currentUser, logout, signInWithGoogleAuth, sendPasswordlessEmail, isLoading, error } = useAuth();
+  const { currentUser, logout, signInWithGoogleAuth, sendPasswordlessEmail, updateUsername, isLoading, error } = useAuth();
   const { stats, activities } = useGame();
   
   const [email, setEmail] = useState('');
   const [emailSent, setEmailSent] = useState(false);
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  
+  // Set initial username from currentUser when available
+  useEffect(() => {
+    if (currentUser?.name) {
+      setNewUsername(currentUser.name);
+    }
+  }, [currentUser?.name]);
   
   // Calculate all time metrics
   const totalTimeSpent = activities.reduce((total, activity) => {
@@ -36,23 +45,23 @@ const Profile = () => {
   }, 0);
   
   const totalProductiveTime = activities
-    .filter(a => a.type === 'study' || a.type === 'sports')
+    .filter(a => a.type === 'intellectual' || a.type === 'physical')
     .reduce((total, activity) => total + activity.minutes, 0);
   
-  const studyTime = activities
-    .filter(a => a.type === 'study')
+  const intellectualTime = activities
+    .filter(a => a.type === 'intellectual')
     .reduce((total, activity) => total + activity.minutes, 0);
   
-  const sportsTime = activities
-    .filter(a => a.type === 'sports')
+  const physicalTime = activities
+    .filter(a => a.type === 'physical')
     .reduce((total, activity) => total + activity.minutes, 0);
   
   const recoveryTime = activities
     .filter(a => a.type === 'recovery')
     .reduce((total, activity) => total + activity.minutes, 0);
   
-  const totalWastedTime = activities
-    .filter(a => a.type === 'wasted')
+  const totalDistractionsTime = activities
+    .filter(a => a.type === 'distractions')
     .reduce((total, activity) => total + activity.minutes, 0);
   
   // Calculate max streak (this would typically come from historical data)
@@ -136,6 +145,24 @@ const Profile = () => {
       // Error is already handled in AuthContext
     }
   };
+  
+  const handleUpdateUsername = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newUsername.trim()) {
+      toast.error("Username cannot be empty");
+      return;
+    }
+    
+    try {
+      await updateUsername(newUsername);
+      setIsEditingUsername(false);
+      toast.success("Username updated successfully");
+    } catch (error) {
+      toast.error("Failed to update username");
+      console.error(error);
+    }
+  };
 
   return (
     <PageTransition>
@@ -152,30 +179,82 @@ const Profile = () => {
             <div className="space-y-6">
               <div className="cyber-panel p-6 rounded-lg">
                 <div className="flex items-center space-x-4 mb-4">
-                  <div className="cyber-panel p-3 rounded-full">
+                  <div className="h-24 w-24 rounded-full overflow-hidden border-2 border-cyber-blue">
                     {currentUser.photoURL ? (
-                      <img 
-                        src={currentUser.photoURL} 
-                        alt={currentUser.name || 'User'} 
-                        className="w-8 h-8 rounded-full"
+                      <img
+                        src={currentUser.photoURL}
+                        alt={currentUser.name || "User"}
+                        className="h-full w-full object-cover"
                       />
                     ) : (
-                      <User className="w-8 h-8 text-cyber-blue" />
+                      <div className="h-full w-full bg-gray-800 flex items-center justify-center">
+                        <User className="h-12 w-12 text-gray-400" />
+                      </div>
                     )}
                   </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-white">{currentUser.name || 'User'}</h2>
-                    <p className="text-sm text-gray-400">{currentUser.email}</p>
-                  </div>
+                  
+                  {isEditingUsername ? (
+                    <form onSubmit={handleUpdateUsername} className="w-full">
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          value={newUsername}
+                          onChange={(e) => setNewUsername(e.target.value)}
+                          className="cyber-input w-full"
+                          placeholder="Enter new username"
+                          maxLength={30}
+                        />
+                        <div className="flex justify-between">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingUsername(false);
+                              setNewUsername(currentUser.name || "");
+                            }}
+                            className="cyber-button-outline text-sm py-1 px-3"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            className="cyber-button-primary text-sm py-1 px-3 flex items-center"
+                            disabled={isLoading}
+                          >
+                            {isLoading ? (
+                              <span className="animate-pulse">Saving...</span>
+                            ) : (
+                              <>
+                                <Save className="h-3 w-3 mr-1" /> Save
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="text-center">
+                      <h2 className="text-xl font-bold mb-1 cyber-text">
+                        {currentUser.name || "Anonymous User"}
+                      </h2>
+                      <button
+                        onClick={() => setIsEditingUsername(true)}
+                        className="text-xs text-cyber-blue hover:text-cyber-blue-bright transition-colors"
+                      >
+                        Edit username
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="text-gray-400 text-sm text-center mt-2">
+                  {currentUser.email}
                 </div>
                 
                 <button
                   onClick={handleLogout}
-                  className="cyber-panel py-2 px-4 rounded-md text-gray-300 border-gray-700 flex items-center space-x-2 hover:border-gray-500 text-sm"
-                  disabled={isLoading}
+                  className="mt-4 cyber-button-outline py-1.5 px-3 text-sm flex items-center justify-center w-full"
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span>{isLoading ? 'Signing out...' : 'Sign Out'}</span>
+                  <LogOut className="h-3.5 w-3.5 mr-1.5" /> Sign Out
                 </button>
               </div>
               
@@ -203,15 +282,15 @@ const Profile = () => {
                   
                   <StatItem 
                     icon={<BookOpen className="w-4 h-4" />} 
-                    label="Study Time" 
-                    value={formatTime(studyTime)}
+                    label="Intellectual Time" 
+                    value={formatTime(intellectualTime)}
                     labelColor="text-cyber-blue"
                   />
                   
                   <StatItem 
                     icon={<Activity className="w-4 h-4" />} 
-                    label="Sports Time" 
-                    value={formatTime(sportsTime)}
+                    label="Physical Time" 
+                    value={formatTime(physicalTime)}
                     labelColor="text-cyber-purple"
                   />
                   
@@ -224,8 +303,8 @@ const Profile = () => {
                   
                   <StatItem 
                     icon={<Flame className="w-4 h-4" />} 
-                    label="Wasted Time" 
-                    value={formatTime(totalWastedTime)}
+                    label="Distractions Time" 
+                    value={formatTime(totalDistractionsTime)}
                     labelColor="text-cyber-red"
                   />
                   

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useGame } from '@/context/GameContext';
 import { BookOpen, Dumbbell, Clock, Heart, Award } from 'lucide-react';
@@ -18,7 +17,7 @@ const ActivityLog = () => {
   
   const getActivityIcon = (type: string, isHighQuality?: boolean) => {
     switch(type) {
-      case 'study':
+      case 'intellectual':
         return (
           <div className="relative">
             <BookOpen className="w-5 h-5 text-cyber-blue" />
@@ -29,7 +28,7 @@ const ActivityLog = () => {
             )}
           </div>
         );
-      case 'sports':
+      case 'physical':
         return (
           <div className="relative">
             <Dumbbell className="w-5 h-5 text-cyber-purple" />
@@ -40,7 +39,7 @@ const ActivityLog = () => {
             )}
           </div>
         );
-      case 'wasted':
+      case 'distractions':
         return <Clock className="w-5 h-5 text-cyber-red" />;
       case 'recovery':
         return <Heart className="w-5 h-5 text-green-400" />;
@@ -69,9 +68,9 @@ const ActivityLog = () => {
             className="flex items-center space-x-3 p-3 rounded-md bg-black/30 border border-gray-800"
           >
             <div className={`cyber-panel p-2 rounded-full ${
-              activity.type === 'study' ? 'border-cyber-blue/50' :
-              activity.type === 'sports' ? 'border-cyber-purple/50' :
-              activity.type === 'wasted' ? 'border-cyber-red/50' :
+              activity.type === 'intellectual' ? 'border-cyber-blue/50' :
+              activity.type === 'physical' ? 'border-cyber-purple/50' :
+              activity.type === 'distractions' ? 'border-cyber-red/50' :
               'border-green-400/50'
             }`}>
               {getActivityIcon(activity.type, activity.isHighQuality)}
@@ -81,7 +80,10 @@ const ActivityLog = () => {
               <div className="flex justify-between items-start">
                 <div>
                   <div className="text-sm font-medium capitalize text-gray-200">
-                    {activity.type} {activity.isHighQuality && '(high quality)'}
+                    {activity.type === 'intellectual' ? 'Intellectual' :
+                     activity.type === 'physical' ? 'Physical Activity' :
+                     activity.type === 'distractions' ? 'Distractions everywhere' :
+                     'Recovery'} {activity.isHighQuality && '(high quality)'}
                   </div>
                   <div className="text-xs text-gray-400">
                     {formatDate(activity.timestamp)}
@@ -89,7 +91,11 @@ const ActivityLog = () => {
                 </div>
                 
                 <div className="text-sm font-medium">
-                  {activity.minutes} mins
+                  {activity.minutes === 0 
+                    ? 'Less than 1 min' 
+                    : activity.minutes === 1 
+                      ? '1 min' 
+                      : `${activity.minutes} mins`}
                 </div>
               </div>
               

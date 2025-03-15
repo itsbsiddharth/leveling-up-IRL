@@ -72,15 +72,15 @@ const RankCard = memo(({ rank, isUnlocked, isActive, progress = 0 }: RankCardPro
     setExpanded(!expanded);
   }, [expanded]);
 
-  // Simplified motion variants
+  // Simplified motion variants with better performance
   const contentVariants = {
-    hidden: { opacity: 0, height: 0 },
-    visible: { opacity: 1, height: 'auto' }
+    hidden: { opacity: 0, height: 0, overflow: 'hidden' },
+    visible: { opacity: 1, height: 'auto', overflow: 'visible' }
   };
 
   return (
     <div 
-      className={`cyber-panel border-2 rounded-lg transition-colors ${
+      className={`cyber-panel border-2 rounded-lg transition-colors will-change-transform ${
         isActive 
           ? 'shadow-lg' 
           : isUnlocked 
@@ -93,13 +93,13 @@ const RankCard = memo(({ rank, isUnlocked, isActive, progress = 0 }: RankCardPro
         onClick={toggleExpanded}
       >
         <div className="flex justify-between items-start">
-          <div>
+          <div className="flex-1">
             <div className="flex items-center">
               {isUnlocked && !isActive && (
-                <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
               )}
               {isActive && (
-                <Trophy className="w-4 h-4 text-yellow-400 mr-2" />
+                <Trophy className="w-4 h-4 text-yellow-400 mr-2 flex-shrink-0" />
               )}
               <h3 className={`text-lg font-semibold ${getTitleColor()}`}>
                 {rank.title}
@@ -110,7 +110,7 @@ const RankCard = memo(({ rank, isUnlocked, isActive, progress = 0 }: RankCardPro
             </p>
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-shrink-0">
             {hasRecoveryBenefits(rank.benefits) && isUnlocked && (
               <Heart className="w-4 h-4 text-green-400 mr-1" />
             )}
@@ -147,7 +147,7 @@ const RankCard = memo(({ rank, isUnlocked, isActive, progress = 0 }: RankCardPro
           initial="hidden"
           animate="visible"
           exit="hidden"
-          transition={{ duration: 0.2 }}
+          transition={{ duration: 0.2, ease: "easeInOut" }}
           className="px-4 pb-4"
         >
           <div className="h-px bg-gray-800 mb-3" />

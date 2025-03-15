@@ -77,10 +77,11 @@ const AppFallback = () => (
   </div>
 );
 
-// Lazy load less frequently accessed pages
+// Lazy load other pages to improve initial page load
+const Profile = lazy(() => import("./pages/Profile"));
 const Timer = lazy(() => import("./pages/Timer"));
 const Achievements = lazy(() => import("./pages/Achievements"));
-const Profile = lazy(() => import("./pages/Profile"));
+const Quests = lazy(() => import("./pages/Quests"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Create a memory-optimized query client with better caching
@@ -122,6 +123,13 @@ const AnimatedRoutes = () => {
                 <Index />
               </ErrorBoundary>
             } />
+            <Route path="/profile" element={
+              <ErrorBoundary>
+                <Suspense fallback={<PageLoader />}>
+                  <Profile />
+                </Suspense>
+              </ErrorBoundary>
+            } />
             <Route path="/timer" element={
               <ErrorBoundary>
                 <Suspense fallback={<PageLoader />}>
@@ -136,10 +144,10 @@ const AnimatedRoutes = () => {
                 </Suspense>
               </ErrorBoundary>
             } />
-            <Route path="/profile" element={
+            <Route path="/quests" element={
               <ErrorBoundary>
                 <Suspense fallback={<PageLoader />}>
-                  <Profile />
+                  <Quests />
                 </Suspense>
               </ErrorBoundary>
             } />

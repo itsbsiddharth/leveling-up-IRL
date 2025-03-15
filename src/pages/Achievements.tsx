@@ -98,23 +98,24 @@ const Achievements = memo(() => {
     window.requestAnimationFrame(animateScroll);
   }, []);
   
-  // Scroll to current rank only once on initial render
+  // Scroll to current rank on initial render
   useEffect(() => {
     if (currentRankRef.current && scrollContainerRef.current) {
-      // Directly manipulate scroll position instead of using scrollIntoView
-      // for better performance
-      const container = scrollContainerRef.current;
-      const element = currentRankRef.current;
-      const elementRect = element.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      
-      const scrollTo = element.offsetTop - container.offsetTop - 
-                       (containerRect.height / 2) + (elementRect.height / 2);
-                       
-      // Use setTimeout to ensure this happens after render
+      // Wait for all elements to be properly rendered and sized
       setTimeout(() => {
-        smoothScroll(container, scrollTo, 400);
-      }, 300);
+        const container = scrollContainerRef.current!;
+        const element = currentRankRef.current!;
+        
+        // Calculate the center position that puts the current rank in the middle of the screen
+        const containerHeight = container.clientHeight;
+        const elementRect = element.getBoundingClientRect();
+        
+        // Calculate exact scroll position to center the element with a small offset to prevent cutoff at any zoom level
+        const scrollTo = Math.max(0, element.offsetTop - (containerHeight / 2) + (elementRect.height / 2) - 20);
+        
+        // Use smooth scrolling for better UX
+        smoothScroll(container, scrollTo, 500);
+      }, 400); // Increased timeout further to ensure all elements are rendered
     }
   }, [smoothScroll]);
   
@@ -131,13 +132,15 @@ const Achievements = memo(() => {
     if (currentRankRef.current && scrollContainerRef.current) {
       const container = scrollContainerRef.current;
       const element = currentRankRef.current;
-      const elementRect = element.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
       
-      const scrollTo = element.offsetTop - container.offsetTop - 
-                       (containerRect.height / 2) + (elementRect.height / 2);
-                       
-      smoothScroll(container, scrollTo, 400);
+      // Get accurate measurements
+      const containerHeight = container.clientHeight;
+      const elementRect = element.getBoundingClientRect();
+      
+      // Calculate exact center position with offset to prevent cutoff
+      const scrollTo = Math.max(0, element.offsetTop - (containerHeight / 2) + (elementRect.height / 2) - 20);
+      
+      smoothScroll(container, scrollTo, 500);
     }
   }, [smoothScroll]);
   
@@ -152,7 +155,7 @@ const Achievements = memo(() => {
 
   return (
     <PageTransition>
-      <div className="min-h-screen pb-24">
+      <div className="min-h-screen pb-20">
         <div className="max-w-md mx-auto relative">
           <div className="sticky top-0 z-10 bg-black pt-6 pb-2 px-4">
             <h1 className="text-3xl font-bold mb-1 cyber-text-glow text-cyber-blue">
@@ -188,46 +191,55 @@ const Achievements = memo(() => {
             </div>
           </div>
           
-          {/* Scroll container with hardware acceleration */}
+          {/* Main scroll container - optimized for all zoom levels */}
           <div 
             ref={scrollContainerRef}
-            className="px-4 overflow-y-auto max-h-[calc(100vh-220px)]"
+            className="px-4 scrollbar-none overflow-y-auto"
             style={{ 
+              height: 'min(calc(100vh - 220px), 600px)',
+              maxHeight: '70vh',
               willChange: 'scroll-position',
               WebkitOverflowScrolling: 'touch',
-              scrollBehavior: 'auto' // Use our custom smooth scroll instead
+              scrollBehavior: 'auto'
             }}
           >
-            {/* Higher locked ranks section (above current) */}
-            {higherRanks.length > 0 && (
-              <RankSection 
-                title="Higher Ranks"
-                ranks={higherRanks}
-                isActive={false}
-                currentXP={stats.xp}
-                className="mb-10"
-              />
-            )}
-            
-            {/* Current rank section - centered and highlighted */}
-            <div ref={currentRankRef} className="mb-10">
-              <RankSection 
-                title="Current Rank"
-                ranks={[currentRank]}
-                isActive={true}
-                currentXP={stats.xp}
-              />
+            {/* Flex container to ensure proper positioning */}
+            <div className="flex flex-col min-h-full">
+              {/* Top section with fixed minimum height */}
+              <div className="min-h-[120px] pt-6">
+                {higherRanks.length > 0 && (
+                  <RankSection 
+                    title="Higher Ranks"
+                    ranks={higherRanks}
+                    isActive={false}
+                    currentXP={stats.xp}
+                    className="mb-10"
+                  />
+                )}
+              </div>
+              
+              {/* Current rank always visible on initial load */}
+              <div ref={currentRankRef} className="mb-10 mt-4">
+                <RankSection 
+                  title="Current Rank"
+                  ranks={[currentRank]}
+                  isActive={true}
+                  currentXP={stats.xp}
+                />
+              </div>
+              
+              {/* Bottom section with appropriate spacing */}
+              <div className="min-h-[120px] pb-16">
+                {lowerRanks.length > 0 && (
+                  <RankSection 
+                    title="Lower Ranks"
+                    ranks={lowerRanks}
+                    isActive={false}
+                    currentXP={stats.xp}
+                  />
+                )}
+              </div>
             </div>
-            
-            {/* Lower ranks section (below current) */}
-            {lowerRanks.length > 0 && (
-              <RankSection 
-                title="Lower Ranks"
-                ranks={lowerRanks}
-                isActive={false}
-                currentXP={stats.xp}
-              />
-            )}
           </div>
         </div>
       </div>

@@ -1,12 +1,11 @@
-
 import { Activity } from '@/context/GameContext';
 
 export type DailyActivitySummary = {
   date: string; // ISO date string (YYYY-MM-DD)
   totalMinutes: number;
-  studyMinutes: number;
-  sportsMinutes: number;
-  wastedMinutes: number;
+  intellectualMinutes: number;
+  physicalMinutes: number;
+  distractionsMinutes: number;
   xpGained: number;
   hpLost: number;
 };
@@ -23,10 +22,10 @@ export const getDayKey = (date: Date | string): string => {
   return date.toISOString().split('T')[0];
 };
 
-export const isToday = (dateString: string): boolean => {
-  const today = getDayKey(new Date());
-  const dateKey = getDayKey(dateString);
-  return today === dateKey;
+export const isToday = (dateStr: string): boolean => {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const dateStrDay = dateStr.split('T')[0]; // YYYY-MM-DD
+  return today === dateStrDay;
 };
 
 export const summarizeActivitiesByDay = (activities: Activity[]): Map<string, DailyActivitySummary> => {
@@ -39,9 +38,9 @@ export const summarizeActivitiesByDay = (activities: Activity[]): Map<string, Da
     const existingSummary = summaryMap.get(dateKey) || {
       date: dateKey,
       totalMinutes: 0,
-      studyMinutes: 0,
-      sportsMinutes: 0,
-      wastedMinutes: 0,
+      intellectualMinutes: 0,
+      physicalMinutes: 0,
+      distractionsMinutes: 0,
       xpGained: 0,
       hpLost: 0
     };
@@ -49,12 +48,12 @@ export const summarizeActivitiesByDay = (activities: Activity[]): Map<string, Da
     // Update the summary
     existingSummary.totalMinutes += activity.minutes;
     
-    if (activity.type === 'study') {
-      existingSummary.studyMinutes += activity.minutes;
-    } else if (activity.type === 'sports') {
-      existingSummary.sportsMinutes += activity.minutes;
-    } else if (activity.type === 'wasted') {
-      existingSummary.wastedMinutes += activity.minutes;
+    if (activity.type === 'intellectual') {
+      existingSummary.intellectualMinutes += activity.minutes;
+    } else if (activity.type === 'physical') {
+      existingSummary.physicalMinutes += activity.minutes;
+    } else if (activity.type === 'distractions') {
+      existingSummary.distractionsMinutes += activity.minutes;
     }
     
     if (activity.xpGained) {
