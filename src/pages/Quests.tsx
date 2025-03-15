@@ -473,33 +473,31 @@ const Quests = () => {
                     </div>
                   </div>
                   
-                  <div className="flex justify-between pt-2">
+                  <div className="flex space-x-3 justify-end pt-2">
                     <Button 
                       variant="destructive" 
                       size="sm"
                       onClick={() => deleteQuest(quest.id)}
-                      className="flex items-center"
+                      className="flex items-center mr-auto"
                     >
                       <Trash2 className="h-4 w-4 mr-1" /> Delete
                     </Button>
                     
-                    <div className="space-x-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setExpandedQuestId(null)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        onClick={() => saveQuestEdits(quest)}
-                        className="flex items-center"
-                      >
-                        <Save className="h-4 w-4 mr-1" /> Save
-                      </Button>
-                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setExpandedQuestId(null)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      onClick={() => saveQuestEdits(quest)}
+                      className="flex items-center"
+                    >
+                      <Save className="h-4 w-4 mr-1" /> Save
+                    </Button>
                   </div>
                 </div>
               </m.div>

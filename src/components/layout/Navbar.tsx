@@ -128,11 +128,11 @@ const Navbar = memo(() => {
           }`}
           aria-label={item.label}
           style={{ 
-            minWidth: '50px',
-            padding: '8px 0'
+            minWidth: '40px',
+            padding: '6px 0'
           }}
         >
-          <Icon className="w-6 h-6" />
+          <Icon className="w-5 h-5" />
           <span className="text-xs mt-1">{item.label}</span>
         </button>
       );
@@ -142,9 +142,9 @@ const Navbar = memo(() => {
         <button 
           key={index}
           className="flex flex-col items-center text-gray-400"
-          style={{ minWidth: '50px', padding: '8px 0' }}
+          style={{ minWidth: '40px', padding: '6px 0' }}
         >
-          <div className="w-6 h-6 bg-gray-700 rounded-full"></div>
+          <div className="w-5 h-5 bg-gray-700 rounded-full"></div>
           <span className="text-xs mt-1">Menu</span>
         </button>
       );
@@ -155,7 +155,7 @@ const Navbar = memo(() => {
     <div className="fixed bottom-0 left-0 right-0 z-50 p-4 flex justify-center items-center">
       <div 
         ref={navbarRef}
-        className="cyber-panel p-2 px-6 rounded-full flex space-x-8 sm:space-x-12 relative bg-black border border-gray-800"
+        className="cyber-panel p-2 px-4 rounded-full flex justify-between w-full max-w-md mx-auto relative bg-black border border-gray-800"
         style={{ touchAction: 'manipulation' }} // Improve touch handling
       >
         {NAV_ITEMS.map((item, index) => renderNavButton(item, index))}
