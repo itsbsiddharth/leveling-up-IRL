@@ -1,6 +1,6 @@
 import React from 'react';
 import { useGame } from '@/context/GameContext';
-import { getCurrentRank, getNextRank, getProgressToNextRank, levelWithinRank } from '@/utils/ranks';
+import { getCurrentRank, getNextRank, getProgressToNextRank, levelWithinRank, S_RANK_MAX_LEVEL_XP } from '@/utils/ranks';
 import ProgressBar from '@/components/ui/ProgressBar';
 import { AlertTriangle, Heart, Award, Star } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,6 +13,7 @@ const StatsCard = () => {
   const level = levelWithinRank(stats.xp);
 
   const isCriticalHP = stats.hp <= 20;
+  const isExtendedLevel = currentRank.id === 's-rank' && level > 5;
   
   const handleRecoveryChallenge = () => {
     // Enhanced recovery challenge with higher HP gain
@@ -21,21 +22,33 @@ const StatsCard = () => {
 
   // Calculate percentage for level progress within the current rank
   const levelProgress = () => {
-    // Each level represents 20% of progress within a rank
-    const levelSize = progress.max / 5;
-    const levelStartXP = currentRank.xpRequired + ((level - 1) * levelSize);
-    const nextLevelXP = currentRank.xpRequired + (level * levelSize);
-    const currentLevelXP = stats.xp - levelStartXP;
-    const levelProgressMax = nextLevelXP - levelStartXP;
-    
+    // Use the existing progress data which has been updated to handle extended levels
     return {
-      current: Math.min(currentLevelXP, levelProgressMax),
-      max: levelProgressMax,
-      percentage: Math.min(Math.round((currentLevelXP / levelProgressMax) * 100), 100)
+      current: progress.current,
+      max: progress.max,
+      percentage: progress.percentage
     };
   };
   
   const levelProgressData = levelProgress();
+
+  // Render the level stars for normal ranks (up to level 5)
+  const renderLevelStars = () => {
+    if (isExtendedLevel) {
+      return null; // Don't show stars for extended levels
+    }
+    
+    return (
+      <div className="ml-2 flex">
+        {[...Array(5)].map((_, i) => (
+          <Star 
+            key={i} 
+            className={`w-3 h-3 ${i < level ? 'text-yellow-400 fill-yellow-400' : 'text-gray-700'}`} 
+          />
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="cyber-panel p-6 rounded-lg">
@@ -48,14 +61,12 @@ const StatsCard = () => {
             </h2>
             <div className="text-sm text-gray-300 mt-1 flex items-center">
               <span>Level {level}</span>
-              <div className="ml-2 flex">
-                {[...Array(5)].map((_, i) => (
-                  <Star 
-                    key={i} 
-                    className={`w-3 h-3 ${i < level ? 'text-yellow-400 fill-yellow-400' : 'text-gray-700'}`} 
-                  />
-                ))}
-              </div>
+              {renderLevelStars()}
+              {isExtendedLevel && (
+                <span className="ml-2 text-xs bg-cyber-red/20 border border-cyber-red px-1.5 py-0.5 rounded-sm text-cyber-red">
+                  Extended
+                </span>
+              )}
             </div>
           </div>
           
@@ -79,11 +90,11 @@ const StatsCard = () => {
           <ProgressBar 
             value={levelProgressData.current} 
             max={levelProgressData.max} 
-            color="yellow"
+            color={isExtendedLevel ? "red" : "yellow"}
           />
         </div>
         
-        {/* Rank progress */}
+        {/* Rank progress - only show for non-S-Rank or if at S-Rank, only for normal levels 1-5 */}
         {nextRank ? (
           <div className="mb-4">
             <div className="flex justify-between mb-1">
@@ -99,8 +110,18 @@ const StatsCard = () => {
             />
           </div>
         ) : (
-          <div className="mb-4 text-center">
-            <div className="text-sm text-cyber-red cyber-red-glow">Maximum Rank Achieved</div>
+          <div className="mb-4">
+            {isExtendedLevel ? (
+              <div className="text-xs text-gray-400 mb-1 flex justify-between">
+                <span>Next Level: {level + 1}</span>
+                <span>+1,000 XP</span>
+              </div>
+            ) : (
+              <div className="text-center">
+                <div className="text-sm text-cyber-red cyber-red-glow">Maximum Rank Achieved</div>
+                <div className="text-xs text-gray-400 mt-1">Reach level 6 to continue leveling up</div>
+              </div>
+            )}
           </div>
         )}
         
