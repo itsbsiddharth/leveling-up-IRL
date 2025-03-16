@@ -452,8 +452,8 @@ const Profile = () => {
                 </button>
               </div>
               
-              {/* Add Developer/Debug Tools Section */}
-              {currentUser && (
+              {/* Add Developer/Debug Tools Section - Only visible in development */}
+              {currentUser && process.env.NODE_ENV === 'development' && (
                 <div className="mt-8 border-t border-gray-800 pt-6">
                   <h3 className="text-lg font-semibold mb-3 text-gray-300">Developer Tools</h3>
                   <p className="text-sm text-gray-400 mb-3">These tools help troubleshoot data issues</p>
