@@ -19,12 +19,16 @@ import {
   Award,
   Send,
   Camera,
-  X
+  X,
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { checkLeaderboardData, addTestLeaderboardEntries } from '@/utils/testUtils';
 import { getUserData, updateLeaderboardEntry } from '@/firebase/userService';
 import { getGlobalLeaderboard } from '@/firebase/leaderboardService';
+import { collection, doc, getDoc, writeBatch } from 'firebase/firestore';
+import { db } from '@/firebase';
+import { COLLECTIONS } from '@/firebase/schema';
 
 const Profile = () => {
   const { currentUser, logout, signInWithGoogleAuth, sendPasswordlessEmail, updateUsername, updateProfilePicture, isLoading, error } = useAuth();
@@ -40,6 +44,9 @@ const Profile = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isSecondConfirmOpen, setIsSecondConfirmOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   
   // Set initial username from currentUser when available
   useEffect(() => {
@@ -293,6 +300,75 @@ const Profile = () => {
       console.error('Error syncing user to leaderboard:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to sync profile to leaderboard');
       return false;
+    }
+  };
+
+  // Handle hard reset of user progress
+  const hardResetUserProgress = async () => {
+    if (!currentUser) return;
+    
+    try {
+      setIsResetting(true);
+      
+      // Use a batch to ensure all operations are atomic
+      const batch = writeBatch(db);
+      
+      // 1. Reset user stats
+      const userRef = doc(db, COLLECTIONS.USERS, currentUser.id);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        
+        // Reset stats but keep user account details
+        batch.update(userRef, {
+          stats: {
+            xp: 0,
+            hp: 100,
+            streak: 0,
+            level: 1,
+            rank: 'e-rank',
+            questsCompleted: 0,
+            achievementsUnlocked: 0,
+            totalProductiveMinutes: 0,
+            totalPhysicalMinutes: 0,
+            totalIntellectualMinutes: 0,
+            totalRecoveryMinutes: 0,
+            totalDistractionMinutes: 0
+          },
+          activities: [] // Clear activities array
+        });
+        
+        // 2. Update leaderboard entry
+        const leaderboardRef = doc(db, COLLECTIONS.LEADERBOARD, currentUser.id);
+        batch.update(leaderboardRef, {
+          xp: 0,
+          rank: 'e-rank',
+          level: 1
+        });
+        
+        // 3. Commit all changes as a transaction
+        await batch.commit();
+        
+        // 4. Update local state through game context
+        if (stats) {
+          // Force refresh the game context data
+          window.location.reload();
+        }
+        
+        toast.success('Progress reset successful', {
+          description: 'Your XP, streaks, and activities have been reset.'
+        });
+      }
+    } catch (error) {
+      console.error('Error resetting user progress:', error);
+      toast.error('Failed to reset progress', {
+        description: 'Please try again later.'
+      });
+    } finally {
+      setIsResetting(false);
+      setIsResetModalOpen(false);
+      setIsSecondConfirmOpen(false);
     }
   };
 
@@ -573,6 +649,21 @@ const Profile = () => {
                   />
                 </div>
               </div>
+              
+              {/* Add Hard Reset Button in a symmetrical panel */}
+              <div className="cyber-panel p-6 rounded-lg mt-6">
+                <h3 className="text-lg font-bold mb-4 text-red-500">Danger Zone</h3>
+                <button
+                  onClick={() => setIsResetModalOpen(true)}
+                  className="w-full flex items-center justify-center px-4 py-3 bg-black border border-red-500 text-red-500 rounded-md hover:bg-red-900/20 transition-colors duration-300"
+                >
+                  <AlertTriangle className="w-5 h-5 mr-2" />
+                  <span>RESET: Unleash the Void</span>
+                </button>
+                <p className="mt-2 text-sm text-gray-500">
+                  This will erase all progress—XP, streaks, and today's activities. Proceed only if you are ready to start fresh.
+                </p>
+              </div>
             </div>
           ) : (
             <div className="cyber-panel p-6 rounded-lg">
@@ -670,6 +761,92 @@ const Profile = () => {
         </div>
       </div>
       <Navbar />
+      
+      {/* Hard Reset First Confirmation Modal */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="cyber-panel bg-cyber-black border border-red-500/50 p-6 rounded-lg max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white flex items-center">
+                <AlertTriangle className="w-5 h-5 text-red-500 mr-2" />
+                Reset Progress
+              </h3>
+              <button 
+                onClick={() => setIsResetModalOpen(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className="text-gray-300 mb-4">
+              Are you sure you want to reset your progress? This action will remove all XP, streak counts, and activity logs. Your account details (name, profile picture) will remain intact.
+            </p>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => setIsResetModalOpen(false)}
+                className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setIsResetModalOpen(false);
+                  setIsSecondConfirmOpen(true);
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Hard Reset Second Confirmation Modal */}
+      {isSecondConfirmOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="cyber-panel bg-cyber-black border border-red-500 p-6 rounded-lg max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white flex items-center">
+                <AlertTriangle className="w-5 h-5 text-red-500 mr-2" />
+                FINAL WARNING
+              </h3>
+              <button 
+                onClick={() => setIsSecondConfirmOpen(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className="text-red-500 font-bold mb-4">
+              WARNING: Once the reset is executed, the system shall erase all traces of your journey.
+            </p>
+            
+            <p className="text-gray-300">
+              Confirm if you are ready to be reborn as a new hunter. Press 'I'm ready' to confirm.
+            </p>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => setIsSecondConfirmOpen(false)}
+                className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={hardResetUserProgress}
+                disabled={isResetting}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isResetting ? 'Processing...' : "I'm ready"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageTransition>
   );
 };

@@ -1,10 +1,11 @@
 import React from 'react';
 import { useGame } from '@/context/GameContext';
-import { BookOpen, Dumbbell, Clock, Heart, Award } from 'lucide-react';
+import { BookOpen, Dumbbell, Clock, Heart, Award, RotateCcw } from 'lucide-react';
 import { isToday } from '@/utils/activityUtils';
+import { toast } from 'sonner';
 
 const ActivityLog = () => {
-  const { activities } = useGame();
+  const { activities, undoActivity } = useGame();
   
   // Filter activities to show only today's
   const todayActivities = activities.filter(activity => isToday(activity.timestamp));
@@ -48,6 +49,23 @@ const ActivityLog = () => {
     }
   };
   
+  // Handle undo of an activity
+  const handleUndoActivity = (activityId: string) => {
+    try {
+      undoActivity(activityId);
+      
+      // Show success toast
+      toast.success('Activity undone', {
+        description: 'Progress has been updated.'
+      });
+    } catch (error) {
+      console.error('Error undoing activity:', error);
+      toast.error('Failed to undo activity', {
+        description: 'Please try again later.'
+      });
+    }
+  };
+  
   if (todayActivities.length === 0) {
     return (
       <div className="cyber-panel p-6 rounded-lg text-center">
@@ -65,7 +83,7 @@ const ActivityLog = () => {
         {todayActivities.map(activity => (
           <div 
             key={activity.id} 
-            className="flex items-center space-x-3 p-3 rounded-md bg-black/30 border border-gray-800"
+            className="flex items-center space-x-3 p-3 rounded-md bg-black/30 border border-gray-800 relative group"
           >
             <div className={`cyber-panel p-2 rounded-full ${
               activity.type === 'intellectual' ? 'border-cyber-blue/50' :
@@ -117,6 +135,15 @@ const ActivityLog = () => {
                 </div>
               )}
             </div>
+            
+            {/* Undo button */}
+            <button
+              onClick={() => handleUndoActivity(activity.id)}
+              className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-cyan-400 hover:text-cyan-300 focus:opacity-100"
+              title="Undo this activity"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
           </div>
         ))}
       </div>

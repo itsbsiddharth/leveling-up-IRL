@@ -18,6 +18,14 @@ export interface Activity {
   isHighQuality?: boolean;
 }
 
+// Define an interface for the confirmation modal
+interface SessionConfirmationModal {
+  isOpen: boolean;
+  type: ActivityType | null;
+  minutes: number;
+  isHighQuality: boolean;
+}
+
 // Add Quest interfaces and types
 export type QuestCategory = 'intellectual' | 'physical' | 'recovery';
 
@@ -49,6 +57,8 @@ interface GameContextType {
     elapsedTime: number;
   };
   logActivity: (type: ActivityType, minutes: number, isHighQuality?: boolean) => void;
+  confirmLongSession: (confirm: boolean) => void;
+  undoActivity: (activityId: string) => void;
   startTimer: (type: ActivityType) => void;
   pauseTimer: () => void;
   resumeTimer: () => void;
@@ -56,20 +66,17 @@ interface GameContextType {
   getXpForActivity: (minutes: number, isHighQuality?: boolean) => number;
   getHpForWastedTime: (minutes: number) => number;
   getHpForRecovery: (minutes: number) => number;
-  completeRecoveryChallenge: (hpAmount: number) => void;
-  // Add quest related functions
-  completeQuest: (xpAmount: number) => void;
+  completeRecoveryChallenge: () => void;
+  completeQuest: (questId: string) => void;
 }
 
-const defaultStats: GameStats = {
-  xp: 0,
-  hp: 100,
-  streak: 0,
-  lastActive: null,
-};
-
-const defaultContext: GameContextType = {
-  stats: defaultStats,
+const GameContext = createContext<GameContextType>({
+  stats: {
+    xp: 0,
+    hp: 100,
+    streak: 0,
+    lastActive: null,
+  },
   activities: [],
   activeTimer: {
     type: null,
@@ -78,6 +85,8 @@ const defaultContext: GameContextType = {
     elapsedTime: 0,
   },
   logActivity: () => {},
+  confirmLongSession: () => {},
+  undoActivity: () => {},
   startTimer: () => {},
   pauseTimer: () => {},
   resumeTimer: () => {},
@@ -87,238 +96,275 @@ const defaultContext: GameContextType = {
   getHpForRecovery: () => 0,
   completeRecoveryChallenge: () => {},
   completeQuest: () => {},
-};
-
-const GameContext = createContext<GameContextType>(defaultContext);
+});
 
 export const useGame = () => useContext(GameContext);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [stats, setStats] = useState<GameStats>(() => {
-    const savedStats = localStorage.getItem('gameStats');
-    return savedStats ? JSON.parse(savedStats) : defaultStats;
+  // Game state
+  const [stats, setStats] = useState<GameStats>({
+    xp: 0,
+    hp: 100,
+    streak: 0,
+    lastActive: null,
   });
   
-  const [activities, setActivities] = useState<Activity[]>(() => {
-    const savedActivities = localStorage.getItem('activities');
-    return savedActivities ? JSON.parse(savedActivities) : [];
-  });
+  const [activities, setActivities] = useState<Activity[]>([]);
   
+  // Timer state
   const [activeTimer, setActiveTimer] = useState({
     type: null as ActivityType | null,
     isRunning: false,
     startTime: null as number | null,
-    elapsedTime: 0,
+    elapsedTime: 0, // in milliseconds
   });
   
   const [isFirebaseInitialized, setIsFirebaseInitialized] = useState(false);
   
+  // Add state for confirmation dialog
+  const [sessionConfirmation, setSessionConfirmation] = useState<SessionConfirmationModal>({
+    isOpen: false,
+    type: null,
+    minutes: 0,
+    isHighQuality: false
+  });
+  
   // Check for Firebase user and load data from Firestore
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (user) {
+    const loadUserData = async () => {
+      if (auth.currentUser && !isFirebaseInitialized) {
         try {
-          // Get user data from Firestore
           const userData = await getUserData();
           
-          if (userData) {
-            // User exists in Firestore, use their data
+          if (userData && userData.stats) {
             setStats({
-              xp: userData.stats.xp,
-              hp: userData.stats.hp,
-              streak: userData.stats.streak,
-              lastActive: userData.lastActive ? new Date(userData.lastActive).toISOString() : null,
+              xp: userData.stats.xp || 0,
+              hp: userData.stats.hp || 100,
+              streak: userData.stats.streak || 0,
+              lastActive: userData.lastActive ? new Date(userData.lastActive).toISOString().split('T')[0] : null,
             });
             
-            setIsFirebaseInitialized(true);
-          } else {
-            // User doesn't exist in Firestore yet, migrate local data
-            await migrateLocalDataToFirestore();
-            setIsFirebaseInitialized(true);
+            // Load activities if available
+            if (userData.activities && Array.isArray(userData.activities)) {
+              setActivities(userData.activities);
+            }
           }
+          
+          setIsFirebaseInitialized(true);
         } catch (error) {
-          console.error('Error loading user data from Firebase:', error);
-          toast.error('Failed to load your data from the cloud');
+          console.error("Error loading user data:", error);
         }
+      }
+    };
+    
+    loadUserData();
+    
+    // Listen for auth state changes
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        loadUserData();
       } else {
-        // No user logged in, use local storage
-        setIsFirebaseInitialized(true);
+        // Reset to default state if logged out
+        setIsFirebaseInitialized(false);
       }
     });
     
     return () => unsubscribe();
   }, []);
   
-  // Check and update streak on load
-  useEffect(() => {
-    if (isFirebaseInitialized) {
-      updateStreak();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFirebaseInitialized]);
-  
-  // Save stats to localStorage when they change
-  useEffect(() => {
-    localStorage.setItem('gameStats', JSON.stringify(stats));
-    
-    // If user is logged in, sync with Firestore
-    const syncWithFirestore = async () => {
-      if (auth.currentUser && isFirebaseInitialized) {
-        try {
-          await updateUserStats({
-            xp: stats.xp,
-            hp: stats.hp,
-            streak: stats.streak,
-          });
-        } catch (error) {
-          console.error('Error syncing stats with Firestore:', error);
-        }
-      }
-    };
-    
-    syncWithFirestore();
-  }, [stats, isFirebaseInitialized]);
-  
-  // Save activities to localStorage when they change
-  useEffect(() => {
-    localStorage.setItem('activities', JSON.stringify(activities));
-  }, [activities]);
-  
-  // Update elapsed time while timer is running
-  useEffect(() => {
-    let intervalId: number | undefined;
-    
-    if (activeTimer.isRunning && activeTimer.startTime !== null) {
-      // Set the interval to update every second
-      intervalId = window.setInterval(() => {
-        setActiveTimer(prev => {
-          if (!prev.isRunning || prev.startTime === null) return prev;
-          return {
-            ...prev,
-            elapsedTime: prev.elapsedTime + 1  // Increment by exactly 1 second each tick
-          };
-        });
-      }, 1000);
-    }
-    
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [activeTimer.isRunning, activeTimer.startTime]);
-  
+  // Update streak when user logs activity on a new day
   const updateStreak = () => {
-    if (!stats.lastActive) return;
-    
     const today = new Date().toISOString().split('T')[0];
-    const lastActive = new Date(stats.lastActive).toISOString().split('T')[0];
+    
+    if (stats.lastActive === today) {
+      // Already logged activity today, no streak update needed
+      return;
+    }
+    
+    // Check if the last activity was yesterday
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
     
-    if (today === lastActive) {
-      // Already active today, do nothing
-      return;
-    } else if (yesterdayStr === lastActive) {
-      // Active yesterday, increment streak
+    if (stats.lastActive === yesterdayStr) {
+      // Consecutive day, increment streak
       setStats(prev => ({
         ...prev,
         streak: prev.streak + 1,
         lastActive: today,
       }));
-    } else {
-      // Break in streak
+      
+      // Show streak notification
+      toast.success(`Streak increased to ${stats.streak + 1} days!`, {
+        description: "Keep up the momentum!"
+      });
+    } else if (stats.lastActive !== today) {
+      // Not consecutive, reset streak to 1
       setStats(prev => ({
         ...prev,
-        streak: 1, // Reset to 1 since active today
+        streak: 1,
         lastActive: today,
       }));
+      
+      // Show streak reset notification
+      toast.info(`New streak started!`, {
+        description: "Let's build momentum day by day."
+      });
     }
   };
   
-  const getStreakBonus = () => {
-    // Calculate the streak bonus (capped at 50%)
-    const streakBonus = Math.min(stats.streak * 0.05, 0.5); // 5% per day, max 50%
-    return streakBonus;
-  };
-  
+  // XP calculation for productive activities
   const getXpForActivity = (minutes: number, isHighQuality = false) => {
-    // No XP for 0 minutes
-    if (minutes <= 0) {
-      return 0;
+    // Base XP: 1 XP per minute
+    let xp = minutes;
+    
+    // High quality bonus: +50%
+    if (isHighQuality) {
+      xp = Math.floor(xp * 1.5);
     }
     
-    // New XP calculation: 1 XP per 3 minutes
-    // 0-3 minutes: 0 XP
-    // 3-6 minutes: 1 XP
-    // 6-9 minutes: 2 XP
-    // etc.
-    
-    // Calculate base XP (integer division by 3)
-    let baseXp = 0;
-    if (minutes >= 3) {
-      baseXp = Math.floor(minutes / 3);
+    // Bonus for longer sessions (diminishing returns)
+    if (minutes >= 30) {
+      xp += 5; // +5 XP bonus for 30+ minute sessions
     }
     
-    // Apply streak bonus
-    const streakBonus = getStreakBonus();
+    if (minutes >= 60) {
+      xp += 5; // Additional +5 XP bonus for 60+ minute sessions
+    }
     
-    // Apply quality bonus (10% extra for high-quality sessions)
-    const qualityBonus = isHighQuality ? 0.1 : 0;
-    
-    // Calculate total XP with all bonuses
-    const totalXp = Math.floor(baseXp * (1 + streakBonus + qualityBonus));
-    
-    return totalXp;
+    return xp;
   };
   
+  // HP loss calculation for distractions
   const getHpForWastedTime = (minutes: number) => {
-    // No HP loss for 0 minutes
-    if (minutes <= 0) {
-      return 0;
-    }
+    // Base HP loss: 1 HP per 5 minutes
+    let hpLoss = Math.floor(minutes / 5);
     
-    // HP loss calculation: 5 HP per 15 minutes
-    // 0-15 minutes: 5 HP
-    // 15-30 minutes: 10 HP
-    // 30-45 minutes: 15 HP
-    // etc.
-    
-    // Calculate HP loss (5 HP per 15 minutes, rounded up)
-    const hpLoss = Math.ceil(minutes / 15) * 5;
-    
-    return hpLoss;
+    // Cap HP loss at 50 to prevent excessive punishment
+    return Math.min(hpLoss, 50);
   };
   
+  // HP recovery calculation
   const getHpForRecovery = (minutes: number) => {
-    // No HP gain for 0 minutes
-    if (minutes <= 0) {
-      return 0;
-    }
+    // Base recovery: 1 HP per 2 minutes
+    let hpGain = Math.floor(minutes / 2);
     
-    // HP gain calculation: 5 HP per 30 minutes
-    // 0-30 minutes: 5 HP
-    // 30-60 minutes: 10 HP
-    // 60-90 minutes: 15 HP
-    // etc.
-    
-    // Calculate HP gain (5 HP per 30 minutes, rounded up)
-    const hpGain = Math.ceil(minutes / 30) * 5;
-    
-    return hpGain;
-  };
-  
-  const completeRecoveryChallenge = (hpAmount: number) => {
-    setStats(prev => ({
-      ...prev,
-      hp: Math.min(prev.hp + hpAmount, 100) // Cap at maximum HP
-    }));
-    
-    toast.success(`+${hpAmount} HP recovered!`, {
-      description: "Recovery challenge completed successfully."
-    });
+    // Cap recovery at 50 HP per session
+    return Math.min(hpGain, 50);
   };
   
   const logActivity = (type: ActivityType, minutes: number, isHighQuality = false) => {
+    // Check if the session is longer than 6 hours (360 minutes)
+    if (minutes > 360) {
+      // Show confirmation dialog
+      setSessionConfirmation({
+        isOpen: true,
+        type,
+        minutes,
+        isHighQuality
+      });
+      return; // Don't proceed until user confirms
+    }
+    
+    // Continue with normal activity logging
+    processActivityLog(type, minutes, isHighQuality);
+  };
+  
+  // New method to handle confirmation response
+  const confirmLongSession = (confirm: boolean) => {
+    if (confirm && sessionConfirmation.type) {
+      // User confirmed, proceed with logging
+      processActivityLog(
+        sessionConfirmation.type,
+        sessionConfirmation.minutes,
+        sessionConfirmation.isHighQuality
+      );
+    }
+    
+    // Reset the confirmation state
+    setSessionConfirmation({
+      isOpen: false,
+      type: null,
+      minutes: 0,
+      isHighQuality: false
+    });
+  };
+  
+  // Add handler for undoing activities
+  const undoActivity = (activityId: string) => {
+    // Find the activity to be removed
+    const activityToRemove = activities.find(activity => activity.id === activityId);
+    
+    if (!activityToRemove) return;
+    
+    // Update stats
+    let updatedStats = { ...stats };
+    
+    if (activityToRemove.xpGained) {
+      updatedStats.xp = Math.max(0, stats.xp - activityToRemove.xpGained);
+    }
+    
+    if (activityToRemove.hpLost) {
+      updatedStats.hp = Math.min(100, stats.hp + activityToRemove.hpLost);
+    }
+    
+    if (activityToRemove.hpGained) {
+      updatedStats.hp = Math.max(0, stats.hp - activityToRemove.hpGained);
+    }
+    
+    // Update the stats
+    setStats(updatedStats);
+    
+    // Remove the activity from the list
+    setActivities(currentActivities => 
+      currentActivities.filter(activity => activity.id !== activityId)
+    );
+    
+    // Update Firestore
+    const updateFirestoreStats = async () => {
+      if (!auth.currentUser) return;
+      
+      try {
+        // Get current stat totals
+        const firestoreUser = await getUserData();
+        if (!firestoreUser || !firestoreUser.stats) return;
+        
+        const statUpdates: Partial<UserStats> = {
+          xp: updatedStats.xp,
+          hp: updatedStats.hp,
+        };
+        
+        // Decrement type-specific stats
+        if (activityToRemove.type === 'intellectual') {
+          statUpdates.totalIntellectualMinutes = 
+            Math.max(0, (firestoreUser.stats.totalIntellectualMinutes || 0) - activityToRemove.minutes);
+          statUpdates.totalProductiveMinutes = 
+            Math.max(0, (firestoreUser.stats.totalProductiveMinutes || 0) - activityToRemove.minutes);
+        } else if (activityToRemove.type === 'physical') {
+          statUpdates.totalPhysicalMinutes = 
+            Math.max(0, (firestoreUser.stats.totalPhysicalMinutes || 0) - activityToRemove.minutes);
+          statUpdates.totalProductiveMinutes = 
+            Math.max(0, (firestoreUser.stats.totalProductiveMinutes || 0) - activityToRemove.minutes);
+        } else if (activityToRemove.type === 'distractions') {
+          statUpdates.totalDistractionMinutes = 
+            Math.max(0, (firestoreUser.stats.totalDistractionMinutes || 0) - activityToRemove.minutes);
+        } else if (activityToRemove.type === 'recovery') {
+          statUpdates.totalRecoveryMinutes = 
+            Math.max(0, (firestoreUser.stats.totalRecoveryMinutes || 0) - activityToRemove.minutes);
+        }
+        
+        // Update Firestore
+        await updateUserStats(statUpdates);
+      } catch (error) {
+        console.error("Error updating Firestore after undo:", error);
+      }
+    };
+    
+    updateFirestoreStats();
+  };
+  
+  // Extract the actual logging logic to a separate function
+  const processActivityLog = (type: ActivityType, minutes: number, isHighQuality = false) => {
     const today = new Date().toISOString();
     const todayDate = today.split('T')[0];
     let xpGained = 0;
@@ -398,44 +444,71 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...(xpGained ? { xpGained } : {}),
       ...(hpLost ? { hpLost } : {}),
       ...(hpGained ? { hpGained } : {}),
-      ...(isHighQuality ? { isHighQuality: true } : {}),
+      isHighQuality
     };
     
     setActivities(prev => [newActivity, ...prev]);
+    
+    // Update streak if needed
     updateStreak();
     
-    // Update activity stats in Firestore if user is logged in
-    if (auth.currentUser && isFirebaseInitialized) {
-      const updateFirestoreStats = async () => {
-        try {
-          // Calculate updated activity totals
-          let statsUpdate: Partial<UserStats> = {};
-          
-          if (type === 'intellectual') {
-            statsUpdate.totalIntellectualMinutes = minutes;
-            statsUpdate.totalProductiveMinutes = minutes;
-          } else if (type === 'physical') {
-            statsUpdate.totalPhysicalMinutes = minutes;
-            statsUpdate.totalProductiveMinutes = minutes;
-          } else if (type === 'recovery') {
-            statsUpdate.totalRecoveryMinutes = minutes;
-          } else if (type === 'distractions') {
-            statsUpdate.totalDistractionMinutes = minutes;
-          }
-          
-          await updateUserStats(statsUpdate);
-        } catch (error) {
-          console.error('Error updating activity stats in Firestore:', error);
-        }
-      };
+    // Sync with Firestore
+    const updateFirestoreStats = async () => {
+      if (!auth.currentUser) return;
       
-      updateFirestoreStats();
-    }
+      try {
+        // Get current stat totals for different activity types
+        const firestoreUser = await getUserData();
+        if (!firestoreUser || !firestoreUser.stats) return;
+        
+        const statUpdates: Partial<UserStats> = {
+          xp: stats.xp + xpGained,
+          hp: type === 'distractions' 
+            ? Math.max(stats.hp - hpLost, 0) 
+            : type === 'recovery'
+              ? Math.min(stats.hp + hpGained, 100)
+              : stats.hp,
+          streak: stats.streak,
+        };
+        
+        // Update the type-specific total minutes
+        if (type === 'intellectual') {
+          statUpdates.totalIntellectualMinutes = 
+            (firestoreUser.stats.totalIntellectualMinutes || 0) + minutes;
+        } else if (type === 'physical') {
+          statUpdates.totalPhysicalMinutes = 
+            (firestoreUser.stats.totalPhysicalMinutes || 0) + minutes;
+        } else if (type === 'distractions') {
+          statUpdates.totalDistractionMinutes = 
+            (firestoreUser.stats.totalDistractionMinutes || 0) + minutes;
+        } else if (type === 'recovery') {
+          statUpdates.totalRecoveryMinutes = 
+            (firestoreUser.stats.totalRecoveryMinutes || 0) + minutes;
+        }
+        
+        // Update total productive minutes (intellectual + physical)
+        if (type === 'intellectual' || type === 'physical') {
+          statUpdates.totalProductiveMinutes = 
+            (firestoreUser.stats.totalProductiveMinutes || 0) + minutes;
+        }
+        
+        // Update Firestore
+        await updateUserStats(statUpdates);
+        
+        // Also add the activity to Firestore
+        // ... existing code to add activity to Firestore if needed ...
+      } catch (error) {
+        console.error("Error updating Firestore:", error);
+      }
+    };
+    
+    updateFirestoreStats();
     
     // Reset timer after logging
     resetTimer();
   };
   
+  // Timer functions
   const startTimer = (type: ActivityType) => {
     setActiveTimer({
       type,
@@ -446,22 +519,27 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   const pauseTimer = () => {
-    if (!activeTimer.isRunning) return;
-    
-    setActiveTimer(prev => ({
-      ...prev,
-      isRunning: false,
-      startTime: null,
-      // Keep the current elapsedTime as is, no calculations needed
-    }));
+    if (activeTimer.isRunning && activeTimer.startTime) {
+      const now = Date.now();
+      const newElapsedTime = activeTimer.elapsedTime + (now - activeTimer.startTime);
+      
+      setActiveTimer({
+        ...activeTimer,
+        isRunning: false,
+        startTime: null,
+        elapsedTime: newElapsedTime,
+      });
+    }
   };
   
   const resumeTimer = () => {
-    setActiveTimer(prev => ({
-      ...prev,
-      isRunning: true,
-      startTime: Date.now(),
-    }));
+    if (!activeTimer.isRunning) {
+      setActiveTimer({
+        ...activeTimer,
+        isRunning: true,
+        startTime: Date.now(),
+      });
+    }
   };
   
   const resetTimer = () => {
@@ -473,56 +551,35 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
   
-  // Add a new function to handle quest completion
-  const completeQuest = (xpAmount: number) => {
-    // Add XP to user's total
+  // Recovery challenge completion
+  const completeRecoveryChallenge = () => {
+    // Add HP for completing a recovery challenge
     setStats(prev => ({
       ...prev,
-      xp: prev.xp + xpAmount
+      hp: Math.min(prev.hp + 10, 100), // Add 10 HP, capped at 100
     }));
     
-    // Update streak if needed
-    updateStreak();
+    toast.success(`+10 HP recovered!`, {
+      description: "Recovery challenge completed successfully."
+    });
     
-    // Save the updated stats in localStorage
-    localStorage.setItem('gameStats', JSON.stringify({
-      ...stats,
-      xp: stats.xp + xpAmount
-    }));
-    
-    // Update stats in Firestore if user is logged in
-    if (auth.currentUser && isFirebaseInitialized) {
-      const updateFirestoreStats = async () => {
-        try {
-          await updateUserStats({
-            xp: stats.xp + xpAmount,
-            questsCompleted: 1 // Increment quests completed
-          });
-        } catch (error) {
-          console.error('Error updating quest stats in Firestore:', error);
-        }
-      };
-      
-      updateFirestoreStats();
+    // Update Firestore
+    if (auth.currentUser) {
+      updateUserStats({ hp: Math.min(stats.hp + 10, 100) });
     }
   };
   
-  if (!isFirebaseInitialized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <div className="cyber-panel p-6 border border-cyber-blue max-w-lg">
-          <h2 className="text-xl font-bold text-cyber-blue mb-4">Loading Game Data...</h2>
-          <div className="flex justify-center">
-            <div className="w-8 h-8 border-2 border-cyber-blue border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Quest completion
+  const completeQuest = (questId: string) => {
+    // Implementation for quest completion
+    // This would update quest status and award XP
+    console.log(`Quest ${questId} completed`);
+  };
   
-  return (
-    <GameContext.Provider
-      value={{
+  if (!isFirebaseInitialized) {
+    // Return a loading state or the default context
+    return (
+      <GameContext.Provider value={{
         stats,
         activities,
         activeTimer,
@@ -535,10 +592,65 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         getHpForWastedTime,
         getHpForRecovery,
         completeRecoveryChallenge,
+        confirmLongSession,
+        undoActivity,
         completeQuest
-      }}
-    >
+      }}>
+        {children}
+      </GameContext.Provider>
+    );
+  }
+  
+  return (
+    <GameContext.Provider value={{
+      stats,
+      activities,
+      activeTimer,
+      logActivity,
+      startTimer,
+      pauseTimer,
+      resumeTimer,
+      resetTimer,
+      getXpForActivity,
+      getHpForWastedTime,
+      getHpForRecovery,
+      completeRecoveryChallenge,
+      confirmLongSession,
+      undoActivity,
+      completeQuest
+    }}>
       {children}
+      
+      {/* Session length confirmation modal */}
+      {sessionConfirmation.isOpen && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="cyber-panel bg-cyber-black border border-cyan-500/50 p-6 rounded-lg max-w-md w-full">
+            <h3 className="text-xl font-bold text-white mb-4">Confirm Long Session</h3>
+            
+            <p className="text-gray-300 mb-4">
+              It appears you are attempting to log an unusually long session ({sessionConfirmation.minutes} minutes). 
+              Are you certain you wish to proceed? This may result in an unintended surge in XP.
+            </p>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => confirmLongSession(false)}
+                className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => confirmLongSession(true)}
+                className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700"
+              >
+                Yes, Log Session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </GameContext.Provider>
   );
 };
+
+export default GameProvider;

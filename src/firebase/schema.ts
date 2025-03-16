@@ -1,5 +1,6 @@
 // Database schema for Firebase Firestore
 // This file defines the structure and types for our Firestore collections
+import { Activity } from '@/context/GameContext';
 
 export interface FirestoreUser {
   uid: string;
@@ -9,6 +10,7 @@ export interface FirestoreUser {
   createdAt: number;
   lastActive: number;
   stats: UserStats;
+  activities?: Activity[];
 }
 
 export interface UserStats {
