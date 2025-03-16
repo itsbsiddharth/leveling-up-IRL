@@ -12,6 +12,10 @@ import { lazy, Suspense, useState, useEffect, Component, ErrorInfo } from "react
 import Index from "./pages/Index";
 import Navbar from "./components/layout/Navbar";
 
+// Add imports for debugging utilities
+import { checkLeaderboardData, addTestLeaderboardEntries } from '@/utils/testUtils';
+import { getGlobalLeaderboard } from './firebase/leaderboardService';
+
 // Error boundary component to catch rendering errors
 class ErrorBoundary extends Component<
   { children: React.ReactNode, fallback?: React.ReactNode },
@@ -170,22 +174,35 @@ const AnimatedRoutes = () => {
   );
 };
 
-const App = () => (
-  <ErrorBoundary fallback={<AppFallback />}>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <GameProvider>
-            <Toaster />
-            <Sonner theme="dark" closeButton position="bottom-center" />
-            <BrowserRouter>
-              <AnimatedRoutes />
-            </BrowserRouter>
-          </GameProvider>
-        </AuthProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </ErrorBoundary>
-);
+const App = () => {
+  // Add debugging tools to window object (development only)
+  if (process.env.NODE_ENV === 'development') {
+    // @ts-ignore - Add to window for debugging
+    window.debugTools = {
+      checkLeaderboardData,
+      addTestLeaderboardEntries,
+      getGlobalLeaderboard
+    };
+    console.log('Debug tools available in console. Try: window.debugTools.checkLeaderboardData()');
+  }
+
+  return (
+    <ErrorBoundary fallback={<AppFallback />}>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <AuthProvider>
+            <GameProvider>
+              <Toaster />
+              <Sonner theme="dark" closeButton position="bottom-center" />
+              <BrowserRouter>
+                <AnimatedRoutes />
+              </BrowserRouter>
+            </GameProvider>
+          </AuthProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  );
+};
 
 export default App;

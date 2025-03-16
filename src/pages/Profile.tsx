@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PageTransition from '@/components/layout/PageTransition';
 import Navbar from '@/components/layout/Navbar';
 import ActivityHeatmap from '@/components/profile/ActivityHeatmap';
@@ -17,12 +17,17 @@ import {
   TrendingUp, 
   Trophy, 
   Award,
-  Send
+  Send,
+  Camera,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { checkLeaderboardData, addTestLeaderboardEntries } from '@/utils/testUtils';
+import { getUserData, updateLeaderboardEntry } from '@/firebase/userService';
+import { getGlobalLeaderboard } from '@/firebase/leaderboardService';
 
 const Profile = () => {
-  const { currentUser, logout, signInWithGoogleAuth, sendPasswordlessEmail, updateUsername, isLoading, error } = useAuth();
+  const { currentUser, logout, signInWithGoogleAuth, sendPasswordlessEmail, updateUsername, updateProfilePicture, isLoading, error } = useAuth();
   const { stats, activities } = useGame();
   
   const [email, setEmail] = useState('');
@@ -31,6 +36,10 @@ const Profile = () => {
   const [name, setName] = useState('');
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [newUsername, setNewUsername] = useState('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Set initial username from currentUser when available
   useEffect(() => {
@@ -164,6 +173,129 @@ const Profile = () => {
     }
   };
 
+  // Handle file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    
+    // Check file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image size should be less than 2MB');
+      return;
+    }
+    
+    setSelectedFile(file);
+    
+    // Create a preview URL
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreviewUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  // Handle profile picture update
+  const handleUpdateProfilePicture = async () => {
+    if (!selectedFile) return;
+    
+    try {
+      setIsUploadingPhoto(true);
+      console.log('Starting profile picture upload...');
+      
+      // Upload the image with cancellable function
+      const { promise, cancel } = updateProfilePicture(selectedFile);
+      
+      // Store the cancel function for later use
+      const handleCancel = () => {
+        cancel();
+        setIsUploadingPhoto(false);
+        setSelectedFile(null);
+        setPreviewUrl(null);
+      };
+      
+      // Set up cancel on component unmount
+      const cleanup = () => {
+        handleCancel();
+      };
+      
+      // Add event listener for beforeunload to cancel upload if page is closed
+      window.addEventListener('beforeunload', cleanup);
+      
+      // Wait for upload to complete
+      await promise;
+      
+      console.log('Profile picture uploaded successfully!');
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      toast.success('Profile picture updated successfully');
+      
+      // Remove event listener
+      window.removeEventListener('beforeunload', cleanup);
+    } catch (error) {
+      // Show specific error message
+      console.error('Profile picture upload failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update profile picture');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+  
+  // Cancel profile picture update
+  const handleCancelPhotoUpdate = () => {
+    if (isUploadingPhoto) {
+      // If upload is in progress, cancel it
+      const { cancel } = updateProfilePicture(selectedFile!);
+      cancel();
+    }
+    setIsUploadingPhoto(false);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+  };
+  
+  // Trigger file input click
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Add this function to manually sync user to leaderboard
+  const syncUserToLeaderboard = async () => {
+    try {
+      if (!currentUser) {
+        toast.error('You must be signed in to sync your data');
+        return;
+      }
+      
+      toast.info('Syncing your profile to leaderboard...');
+      
+      // Get current user data
+      const userData = await getUserData();
+      if (!userData) {
+        toast.error('Could not find your user data');
+        return;
+      }
+      
+      // Manually update leaderboard entry
+      await updateLeaderboardEntry(userData);
+      toast.success('Your profile has been synced to the leaderboard!');
+      
+      // For debug: log leaderboard entry
+      const leaderboardData = await getGlobalLeaderboard(15);
+      console.log('Leaderboard entries after sync:', leaderboardData);
+      
+      return true;
+    } catch (error) {
+      console.error('Error syncing user to leaderboard:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to sync profile to leaderboard');
+      return false;
+    }
+  };
+
   return (
     <PageTransition>
       <div className="min-h-screen px-4 pt-6 pb-24">
@@ -179,8 +311,21 @@ const Profile = () => {
             <div className="space-y-6">
               <div className="cyber-panel p-6 rounded-lg">
                 <div className="flex items-center space-x-4 mb-4">
-                  <div className="h-24 w-24 rounded-full overflow-hidden border-2 border-cyber-blue">
-                    {currentUser.photoURL ? (
+                  <div className="h-24 w-24 rounded-full overflow-hidden border-2 border-cyber-blue relative group">
+                    {previewUrl ? (
+                      <div className="relative w-full h-full">
+                        <img
+                          src={previewUrl}
+                          alt="Preview"
+                          className="h-full w-full object-cover"
+                        />
+                        {isUploadingPhoto && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                            <div className="w-8 h-8 border-2 border-cyber-blue border-t-transparent rounded-full animate-spin"></div>
+                          </div>
+                        )}
+                      </div>
+                    ) : currentUser.photoURL ? (
                       <img
                         src={currentUser.photoURL}
                         alt={currentUser.name || "User"}
@@ -191,9 +336,58 @@ const Profile = () => {
                         <User className="h-12 w-12 text-gray-400" />
                       </div>
                     )}
+                    
+                    {/* Hidden file input */}
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    
+                    {/* Photo upload overlay button */}
+                    {!selectedFile && (
+                      <button
+                        onClick={triggerFileInput}
+                        className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        aria-label="Change profile picture"
+                      >
+                        <Camera className="h-8 w-8 text-white" />
+                      </button>
+                    )}
                   </div>
                   
-                  {isEditingUsername ? (
+                  {selectedFile ? (
+                    <div className="flex flex-col space-y-2 flex-1">
+                      <div className="text-sm text-cyber-blue">Update profile picture?</div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={handleCancelPhotoUpdate}
+                          className="cyber-button-outline text-sm py-1 px-3 flex items-center"
+                          disabled={isUploadingPhoto}
+                        >
+                          <X className="h-3 w-3 mr-1" /> Cancel
+                        </button>
+                        <button
+                          onClick={handleUpdateProfilePicture}
+                          className="cyber-button-primary text-sm py-1 px-3 flex items-center"
+                          disabled={isUploadingPhoto}
+                        >
+                          {isUploadingPhoto ? (
+                            <span className="animate-pulse flex items-center">
+                              <div className="w-3 h-3 mr-1.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                              Uploading...
+                            </span>
+                          ) : (
+                            <>
+                              <Save className="h-3 w-3 mr-1" /> Save
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ) : isEditingUsername ? (
                     <form onSubmit={handleUpdateUsername} className="w-full">
                       <div className="space-y-2">
                         <input
@@ -257,6 +451,51 @@ const Profile = () => {
                   <LogOut className="h-3.5 w-3.5 mr-1.5" /> Sign Out
                 </button>
               </div>
+              
+              {/* Add Developer/Debug Tools Section */}
+              {currentUser && (
+                <div className="mt-8 border-t border-gray-800 pt-6">
+                  <h3 className="text-lg font-semibold mb-3 text-gray-300">Developer Tools</h3>
+                  <p className="text-sm text-gray-400 mb-3">These tools help troubleshoot data issues</p>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={async () => {
+                        const hasData = await checkLeaderboardData();
+                        if (!hasData) {
+                          toast.error('No leaderboard data found. Try adding test data.');
+                        } else {
+                          toast.success('Leaderboard data exists. Check console for details.');
+                        }
+                      }}
+                      className="cyber-button-small bg-orange-900/20 text-orange-400 border-orange-800"
+                    >
+                      Check Leaderboard Data
+                    </button>
+                    
+                    <button
+                      onClick={async () => {
+                        const success = await addTestLeaderboardEntries();
+                        if (success) {
+                          toast.success('Test data added to leaderboard. Try viewing the leaderboard now.');
+                        }
+                      }}
+                      className="cyber-button-small bg-blue-900/20 text-blue-400 border-blue-800"
+                    >
+                      Add Test Leaderboard Data
+                    </button>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      await syncUserToLeaderboard();
+                    }}
+                    className="p-2 cyber-button-outline text-sm w-full mb-2"
+                  >
+                    Sync Me to Leaderboard
+                  </button>
+                  <p className="text-xs text-gray-500 mt-2">Note: These functions are for development purposes only</p>
+                </div>
+              )}
               
               {/* Activity Heatmap */}
               <ActivityHeatmap />

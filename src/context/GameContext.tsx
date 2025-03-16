@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { getCurrentRank, getNextRank, getProgressToNextRank, levelWithinRank } from '@/utils/ranks';
+import { auth } from '../firebase';
+import { getUserData, updateUserStats, migrateLocalDataToFirestore } from '../firebase/userService';
+import { FirestoreUser, UserStats } from '../firebase/schema';
 
 export type ActivityType = 'intellectual' | 'physical' | 'distractions' | 'recovery';
 
@@ -108,17 +111,75 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     elapsedTime: 0,
   });
   
-  // Check and update streak on load
+  const [isFirebaseInitialized, setIsFirebaseInitialized] = useState(false);
+  
+  // Check for Firebase user and load data from Firestore
   useEffect(() => {
-    updateStreak();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        try {
+          // Get user data from Firestore
+          const userData = await getUserData();
+          
+          if (userData) {
+            // User exists in Firestore, use their data
+            setStats({
+              xp: userData.stats.xp,
+              hp: userData.stats.hp,
+              streak: userData.stats.streak,
+              lastActive: userData.lastActive ? new Date(userData.lastActive).toISOString() : null,
+            });
+            
+            setIsFirebaseInitialized(true);
+          } else {
+            // User doesn't exist in Firestore yet, migrate local data
+            await migrateLocalDataToFirestore();
+            setIsFirebaseInitialized(true);
+          }
+        } catch (error) {
+          console.error('Error loading user data from Firebase:', error);
+          toast.error('Failed to load your data from the cloud');
+        }
+      } else {
+        // No user logged in, use local storage
+        setIsFirebaseInitialized(true);
+      }
+    });
+    
+    return () => unsubscribe();
   }, []);
   
-  // Save stats and activities to localStorage when they change
+  // Check and update streak on load
+  useEffect(() => {
+    if (isFirebaseInitialized) {
+      updateStreak();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFirebaseInitialized]);
+  
+  // Save stats to localStorage when they change
   useEffect(() => {
     localStorage.setItem('gameStats', JSON.stringify(stats));
-  }, [stats]);
+    
+    // If user is logged in, sync with Firestore
+    const syncWithFirestore = async () => {
+      if (auth.currentUser && isFirebaseInitialized) {
+        try {
+          await updateUserStats({
+            xp: stats.xp,
+            hp: stats.hp,
+            streak: stats.streak,
+          });
+        } catch (error) {
+          console.error('Error syncing stats with Firestore:', error);
+        }
+      }
+    };
+    
+    syncWithFirestore();
+  }, [stats, isFirebaseInitialized]);
   
+  // Save activities to localStorage when they change
   useEffect(() => {
     localStorage.setItem('activities', JSON.stringify(activities));
   }, [activities]);
@@ -216,33 +277,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return 0;
     }
     
-    // Get today's distractions time before this session
-    const today = new Date().toISOString().split('T')[0];
-    const todayDistractionsMinutes = activities
-      .filter(a => a.type === 'distractions' && a.timestamp.includes(today))
-      .reduce((total, activity) => total + activity.minutes, 0);
-    
-    // New HP loss calculation: -1 HP per 6 minutes
-    // 0-6 minutes: 0 HP
-    // 6-12 minutes: 1 HP
-    // 12-18 minutes: 2 HP
+    // HP loss calculation: 5 HP per 15 minutes
+    // 0-15 minutes: 5 HP
+    // 15-30 minutes: 10 HP
+    // 30-45 minutes: 15 HP
     // etc.
     
-    // Base HP loss rate: 1 HP per 6 minutes
-    let ratePerSixMinutes = 1;
-    
-    // Tier 1: After 1 hour of distractions, increase to 2 HP per 6 minutes
-    if (todayDistractionsMinutes >= 60) {
-      ratePerSixMinutes = 2;
-    }
-    
-    // Tier 2: After 2 hours of distractions, increase to 3 HP per 6 minutes
-    if (todayDistractionsMinutes >= 120) {
-      ratePerSixMinutes = 3;
-    }
-    
-    // Calculate HP loss
-    const hpLoss = Math.floor(minutes / 6) * ratePerSixMinutes;
+    // Calculate HP loss (5 HP per 15 minutes, rounded up)
+    const hpLoss = Math.ceil(minutes / 15) * 5;
     
     return hpLoss;
   };
@@ -253,12 +295,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return 0;
     }
     
-    // New HP gain calculation: 1 HP per 6 minutes
-    // 0-6 minutes: 0 HP
-    // 6-12 minutes: 1 HP
-    // 12-18 minutes: 2 HP
+    // HP gain calculation: 5 HP per 30 minutes
+    // 0-30 minutes: 5 HP
+    // 30-60 minutes: 10 HP
+    // 60-90 minutes: 15 HP
     // etc.
-    const hpGain = Math.floor(minutes / 6);
+    
+    // Calculate HP gain (5 HP per 30 minutes, rounded up)
+    const hpGain = Math.ceil(minutes / 30) * 5;
     
     return hpGain;
   };
@@ -360,6 +404,34 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActivities(prev => [newActivity, ...prev]);
     updateStreak();
     
+    // Update activity stats in Firestore if user is logged in
+    if (auth.currentUser && isFirebaseInitialized) {
+      const updateFirestoreStats = async () => {
+        try {
+          // Calculate updated activity totals
+          let statsUpdate: Partial<UserStats> = {};
+          
+          if (type === 'intellectual') {
+            statsUpdate.totalIntellectualMinutes = minutes;
+            statsUpdate.totalProductiveMinutes = minutes;
+          } else if (type === 'physical') {
+            statsUpdate.totalPhysicalMinutes = minutes;
+            statsUpdate.totalProductiveMinutes = minutes;
+          } else if (type === 'recovery') {
+            statsUpdate.totalRecoveryMinutes = minutes;
+          } else if (type === 'distractions') {
+            statsUpdate.totalDistractionMinutes = minutes;
+          }
+          
+          await updateUserStats(statsUpdate);
+        } catch (error) {
+          console.error('Error updating activity stats in Firestore:', error);
+        }
+      };
+      
+      updateFirestoreStats();
+    }
+    
     // Reset timer after logging
     resetTimer();
   };
@@ -417,7 +489,36 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...stats,
       xp: stats.xp + xpAmount
     }));
+    
+    // Update stats in Firestore if user is logged in
+    if (auth.currentUser && isFirebaseInitialized) {
+      const updateFirestoreStats = async () => {
+        try {
+          await updateUserStats({
+            xp: stats.xp + xpAmount,
+            questsCompleted: 1 // Increment quests completed
+          });
+        } catch (error) {
+          console.error('Error updating quest stats in Firestore:', error);
+        }
+      };
+      
+      updateFirestoreStats();
+    }
   };
+  
+  if (!isFirebaseInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <div className="cyber-panel p-6 border border-cyber-blue max-w-lg">
+          <h2 className="text-xl font-bold text-cyber-blue mb-4">Loading Game Data...</h2>
+          <div className="flex justify-center">
+            <div className="w-8 h-8 border-2 border-cyber-blue border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <GameContext.Provider

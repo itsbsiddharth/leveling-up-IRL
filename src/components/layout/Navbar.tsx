@@ -6,6 +6,7 @@ import {
   Trophy, 
   User,
   ScrollText,
+  Award,
   LucideIcon 
 } from 'lucide-react';
 
@@ -20,8 +21,8 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { path: '/', icon: LayoutDashboard, label: 'Home' },
   { path: '/timer', icon: Timer, label: 'Timer' },
-  { path: '/quests', icon: ScrollText, label: 'Quests' },
   { path: '/achievements', icon: Trophy, label: 'Ranks' },
+  { path: '/quests', icon: ScrollText, label: 'Quests' },
   { path: '/profile', icon: User, label: 'Profile' }
 ];
 
