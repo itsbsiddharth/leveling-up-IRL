@@ -2,7 +2,7 @@ import React from 'react';
 import { useGame } from '@/context/GameContext';
 import { getCurrentRank, getNextRank, getProgressToNextRank, levelWithinRank } from '@/utils/ranks';
 import ProgressBar from '@/components/ui/ProgressBar';
-import { AlertTriangle, Heart } from 'lucide-react';
+import { AlertTriangle, Heart, Award, Star } from 'lucide-react';
 import { toast } from 'sonner';
 
 const StatsCard = () => {
@@ -15,9 +15,27 @@ const StatsCard = () => {
   const isCriticalHP = stats.hp <= 20;
   
   const handleRecoveryChallenge = () => {
-    // Quick recovery challenge - gain 15 HP
+    // Enhanced recovery challenge with higher HP gain
     completeRecoveryChallenge(15);
   };
+
+  // Calculate percentage for level progress within the current rank
+  const levelProgress = () => {
+    // Each level represents 20% of progress within a rank
+    const levelSize = progress.max / 5;
+    const levelStartXP = currentRank.xpRequired + ((level - 1) * levelSize);
+    const nextLevelXP = currentRank.xpRequired + (level * levelSize);
+    const currentLevelXP = stats.xp - levelStartXP;
+    const levelProgressMax = nextLevelXP - levelStartXP;
+    
+    return {
+      current: Math.min(currentLevelXP, levelProgressMax),
+      max: levelProgressMax,
+      percentage: Math.min(Math.round((currentLevelXP / levelProgressMax) * 100), 100)
+    };
+  };
+  
+  const levelProgressData = levelProgress();
 
   return (
     <div className="cyber-panel p-6 rounded-lg">
@@ -28,7 +46,17 @@ const StatsCard = () => {
             <h2 className={`text-2xl font-semibold ${currentRank.color === 'blue' ? 'cyber-text-glow text-cyber-blue' : currentRank.color === 'purple' ? 'cyber-purple-glow text-cyber-purple' : 'cyber-red-glow text-cyber-red'}`}>
               {currentRank.title}
             </h2>
-            <div className="text-sm text-gray-300 mt-1">Level {level}</div>
+            <div className="text-sm text-gray-300 mt-1 flex items-center">
+              <span>Level {level}</span>
+              <div className="ml-2 flex">
+                {[...Array(5)].map((_, i) => (
+                  <Star 
+                    key={i} 
+                    className={`w-3 h-3 ${i < level ? 'text-yellow-400 fill-yellow-400' : 'text-gray-700'}`} 
+                  />
+                ))}
+              </div>
+            </div>
           </div>
           
           <div className="flex flex-col items-end">
@@ -40,6 +68,22 @@ const StatsCard = () => {
           </div>
         </div>
         
+        {/* Level progress within rank */}
+        <div className="mb-3">
+          <div className="flex justify-between mb-1">
+            <div className="text-xs text-gray-400">Level Progress</div>
+            <div className="text-xs text-gray-400">
+              {levelProgressData.current.toLocaleString()}/{levelProgressData.max.toLocaleString()} XP
+            </div>
+          </div>
+          <ProgressBar 
+            value={levelProgressData.current} 
+            max={levelProgressData.max} 
+            color="yellow"
+          />
+        </div>
+        
+        {/* Rank progress */}
         {nextRank ? (
           <div className="mb-4">
             <div className="flex justify-between mb-1">

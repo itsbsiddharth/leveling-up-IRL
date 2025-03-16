@@ -196,7 +196,7 @@ const Quests = () => {
         id,
         title: newQuestTitle.trim(),
         category: getDefaultCategory(),
-        xpValue: 10,
+        xpValue: 20,
         completed: false,
         dueDate: new Date().toISOString()
       };
@@ -318,7 +318,8 @@ const Quests = () => {
   // Update XP value
   const updateXpValue = (quest: Quest, change: number) => {
     try {
-      const newValue = Math.max(5, quest.xpValue + change);
+      // Allow a wider range of XP values (5 to 100)
+      const newValue = Math.max(5, Math.min(100, quest.xpValue + change));
       setQuests(prev => {
         const updatedQuests = prev.map(q => 
           q.id === quest.id 
@@ -451,27 +452,8 @@ const Quests = () => {
                     </div>
                   </div>
                   
-                  <div>
-                    <label className="text-sm text-gray-400 block mb-1">XP Value</label>
-                    <div className="flex items-center space-x-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => updateXpValue(quest, -5)}
-                        disabled={quest.xpValue <= 5}
-                      >
-                        -
-                      </Button>
-                      <span className="text-sm text-cyan-400">⭐ {quest.xpValue}</span>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => updateXpValue(quest, 5)}
-                      >
-                        +
-                      </Button>
-                    </div>
-                  </div>
+                  {/* Use the enhanced XP controls */}
+                  <ExpandedQuestControls quest={quest} />
                   
                   <div className="flex space-x-3 justify-end pt-2">
                     <Button 
@@ -511,6 +493,82 @@ const Quests = () => {
   // Filter active and completed quests
   const activeQuests = quests.filter(quest => !quest.completed);
   const completedQuests = quests.filter(quest => quest.completed);
+  
+  // Render an expanded quest item with more controls for customization
+  const ExpandedQuestControls = ({ quest }: { quest: Quest }) => {
+    return (
+      <div className="mt-3 p-3 bg-black/30 rounded-md">
+        <h4 className="text-xs uppercase text-gray-400 mb-2">Quest Difficulty</h4>
+        
+        <div className="flex flex-col space-y-3">
+          {/* XP Value control with better visual feedback */}
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs text-gray-400">XP Value:</span>
+              <span className="text-xs text-cyber-blue">{quest.xpValue} XP</span>
+            </div>
+            <div className="flex items-center">
+              <button 
+                onClick={() => updateXpValue(quest, -5)}
+                className="w-8 h-8 flex items-center justify-center rounded-l-md bg-gray-800 text-white hover:bg-gray-700 disabled:opacity-50"
+                disabled={quest.xpValue <= 5}
+              >
+                <span>-5</span>
+              </button>
+              <div className="flex-1 h-8 bg-gray-900 flex items-center px-2">
+                <div className="h-2 w-full bg-gray-800 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-blue-500 to-cyan-500"
+                    style={{ width: `${Math.min(100, quest.xpValue)}%` }}
+                  ></div>
+                </div>
+              </div>
+              <button 
+                onClick={() => updateXpValue(quest, 5)}
+                className="w-8 h-8 flex items-center justify-center rounded-r-md bg-gray-800 text-white hover:bg-gray-700 disabled:opacity-50"
+                disabled={quest.xpValue >= 100}
+              >
+                <span>+5</span>
+              </button>
+            </div>
+            <div className="mt-1 text-xs text-gray-500 flex justify-between">
+              <span>Easy (5 XP)</span>
+              <span>Custom</span>
+              <span>Hard (100 XP)</span>
+            </div>
+          </div>
+          
+          {/* Quick difficulty presets */}
+          <div className="flex justify-between space-x-2">
+            <button 
+              onClick={() => setQuests(prev => prev.map(q => q.id === quest.id ? { ...q, xpValue: 10 } : q))}
+              className={`text-xs py-1 px-2 rounded ${quest.xpValue === 10 ? 'bg-blue-900 text-blue-200' : 'bg-gray-800 text-gray-300'}`}
+            >
+              Easy (10)
+            </button>
+            <button 
+              onClick={() => setQuests(prev => prev.map(q => q.id === quest.id ? { ...q, xpValue: 20 } : q))}
+              className={`text-xs py-1 px-2 rounded ${quest.xpValue === 20 ? 'bg-blue-900 text-blue-200' : 'bg-gray-800 text-gray-300'}`}
+            >
+              Normal (20)
+            </button>
+            <button 
+              onClick={() => setQuests(prev => prev.map(q => q.id === quest.id ? { ...q, xpValue: 40 } : q))}
+              className={`text-xs py-1 px-2 rounded ${quest.xpValue === 40 ? 'bg-blue-900 text-blue-200' : 'bg-gray-800 text-gray-300'}`}
+            >
+              Hard (40)
+            </button>
+            <button 
+              onClick={() => setQuests(prev => prev.map(q => q.id === quest.id ? { ...q, xpValue: 70 } : q))}
+              className={`text-xs py-1 px-2 rounded ${quest.xpValue === 70 ? 'bg-blue-900 text-blue-200' : 'bg-gray-800 text-gray-300'}`}
+            >
+              Epic (70)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
   
   return (
     <PageTransition>

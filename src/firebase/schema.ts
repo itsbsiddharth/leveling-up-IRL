@@ -17,6 +17,7 @@ export interface UserStats {
   xp: number;
   hp: number;
   streak: number;
+  maxStreak: number;
   level: number;
   rank: string;
   questsCompleted: number;

@@ -1,11 +1,10 @@
-
 import React from 'react';
 import { cn } from '@/lib/utils';
 
 interface ProgressBarProps {
   value: number;
   max: number;
-  color?: 'blue' | 'purple' | 'red';
+  color?: 'blue' | 'purple' | 'red' | 'yellow';
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
   className?: string;
@@ -33,6 +32,7 @@ const ProgressBar = ({
     switch(color) {
       case 'purple': return 'from-cyber-purple/40 to-cyber-purple';
       case 'red': return 'from-cyber-red/40 to-cyber-red';
+      case 'yellow': return 'from-yellow-500/40 to-yellow-500';
       default: return 'from-cyber-blue/40 to-cyber-blue';
     }
   };
@@ -41,6 +41,7 @@ const ProgressBar = ({
     switch(color) {
       case 'purple': return 'shadow-[0_0_10px_rgba(127,0,255,0.5)]';
       case 'red': return 'shadow-[0_0_10px_rgba(255,49,49,0.5)]';
+      case 'yellow': return 'shadow-[0_0_10px_rgba(255,215,0,0.5)]';
       default: return 'shadow-[0_0_10px_rgba(0,255,255,0.5)]';
     }
   };

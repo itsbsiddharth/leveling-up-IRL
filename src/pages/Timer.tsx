@@ -19,19 +19,19 @@ const Timer = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="text-center p-2">
                 <div className="text-cyber-blue font-semibold mb-1">Intellectual</div>
-                <div className="text-xs text-gray-400">+1 XP per 3 min</div>
+                <div className="text-xs text-gray-400">+1 XP per min</div>
               </div>
               <div className="text-center p-2">
                 <div className="text-cyber-purple font-semibold mb-1">Physical Activity</div>
-                <div className="text-xs text-gray-400">+1 XP per 3 min</div>
+                <div className="text-xs text-gray-400">+1 XP per min</div>
               </div>
               <div className="text-center p-2">
                 <div className="text-cyber-red font-semibold mb-1">Distractions</div>
-                <div className="text-xs text-gray-400">-1 HP per 6 min</div>
+                <div className="text-xs text-gray-400">-1 HP per 5 min</div>
               </div>
               <div className="text-center p-2">
                 <div className="text-green-400 font-semibold mb-1">Recovery</div>
-                <div className="text-xs text-gray-400">+1 HP per 6 min</div>
+                <div className="text-xs text-gray-400">+10 HP per 5 min</div>
               </div>
             </div>
           </div>

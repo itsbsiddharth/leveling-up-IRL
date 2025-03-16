@@ -44,6 +44,7 @@ interface GameStats {
   xp: number;
   hp: number;
   streak: number; // consecutive days with activity
+  maxStreak: number; // maximum streak ever achieved
   lastActive: string | null;
 }
 
@@ -66,8 +67,9 @@ interface GameContextType {
   getXpForActivity: (minutes: number, isHighQuality?: boolean) => number;
   getHpForWastedTime: (minutes: number) => number;
   getHpForRecovery: (minutes: number) => number;
-  completeRecoveryChallenge: () => void;
-  completeQuest: (questId: string) => void;
+  completeRecoveryChallenge: (hpAmount?: number) => void;
+  completeQuest: (xpValue: number) => void;
+  hardReset: () => Promise<void>;
 }
 
 const GameContext = createContext<GameContextType>({
@@ -75,6 +77,7 @@ const GameContext = createContext<GameContextType>({
     xp: 0,
     hp: 100,
     streak: 0,
+    maxStreak: 0,
     lastActive: null,
   },
   activities: [],
@@ -96,6 +99,7 @@ const GameContext = createContext<GameContextType>({
   getHpForRecovery: () => 0,
   completeRecoveryChallenge: () => {},
   completeQuest: () => {},
+  hardReset: async () => {},
 });
 
 export const useGame = () => useContext(GameContext);
@@ -106,6 +110,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     xp: 0,
     hp: 100,
     streak: 0,
+    maxStreak: 0,
     lastActive: null,
   });
   
@@ -141,6 +146,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               xp: userData.stats.xp || 0,
               hp: userData.stats.hp || 100,
               streak: userData.stats.streak || 0,
+              maxStreak: userData.stats.maxStreak || 0,
               lastActive: userData.lastActive ? new Date(userData.lastActive).toISOString().split('T')[0] : null,
             });
             
@@ -188,11 +194,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     if (stats.lastActive === yesterdayStr) {
       // Consecutive day, increment streak
-      setStats(prev => ({
-        ...prev,
-        streak: prev.streak + 1,
-        lastActive: today,
-      }));
+      setStats(prev => {
+        const newStreak = prev.streak + 1;
+        const newMaxStreak = Math.max(newStreak, prev.maxStreak);
+        
+        return {
+          ...prev,
+          streak: newStreak,
+          maxStreak: newMaxStreak,
+          lastActive: today,
+        };
+      });
       
       // Show streak notification
       toast.success(`Streak increased to ${stats.streak + 1} days!`, {
@@ -203,6 +215,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setStats(prev => ({
         ...prev,
         streak: 1,
+        // maxStreak is unchanged since we're resetting current streak
         lastActive: today,
       }));
       
@@ -215,7 +228,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   // XP calculation for productive activities
   const getXpForActivity = (minutes: number, isHighQuality = false) => {
-    // Base XP: 1 XP per minute
+    // Base XP: 1 XP per minute exactly as per design brief
     let xp = minutes;
     
     // High quality bonus: +50%
@@ -235,27 +248,36 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return xp;
   };
   
-  // HP loss calculation for distractions
+  // HP loss calculation for distractions with tiered penalties
   const getHpForWastedTime = (minutes: number) => {
-    // Base HP loss: 1 HP per 5 minutes
+    // Base HP loss: 1 HP per 5 minutes as per design brief
     let hpLoss = Math.floor(minutes / 5);
     
-    // Cap HP loss at 50 to prevent excessive punishment
-    return Math.min(hpLoss, 50);
+    // Implement tiered penalty for distractions over 1 hour
+    if (minutes > 60) {
+      // Add 50% more HP loss for time beyond 60 minutes
+      const baseHpLoss = Math.floor(60 / 5); // HP loss for first hour
+      const extraMinutes = minutes - 60;
+      const extraHpLoss = Math.floor(extraMinutes / 5 * 1.5); // 50% higher penalty
+      hpLoss = baseHpLoss + extraHpLoss;
+    }
+    
+    // Cap HP loss at 60 to prevent excessive punishment but still significant
+    return Math.min(hpLoss, 60);
   };
   
-  // HP recovery calculation
+  // HP recovery calculation - improved as per design brief
   const getHpForRecovery = (minutes: number) => {
-    // Base recovery: 1 HP per 2 minutes
-    let hpGain = Math.floor(minutes / 2);
+    // Enhanced recovery: 10 HP per 5 minutes (2 HP per minute)
+    let hpGain = Math.floor(minutes / 5 * 10);
     
-    // Cap recovery at 50 HP per session
-    return Math.min(hpGain, 50);
+    // Cap recovery at 60 HP per session (30 minutes of recovery)
+    return Math.min(hpGain, 60);
   };
   
   const logActivity = (type: ActivityType, minutes: number, isHighQuality = false) => {
-    // Check if the session is longer than 6 hours (360 minutes)
-    if (minutes > 360) {
+    // Check if the session is longer than 12 hours (720 minutes)
+    if (minutes > 720) {
       // Show confirmation dialog
       setSessionConfirmation({
         isOpen: true,
@@ -469,6 +491,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               ? Math.min(stats.hp + hpGained, 100)
               : stats.hp,
           streak: stats.streak,
+          maxStreak: stats.maxStreak,
         };
         
         // Update the type-specific total minutes
@@ -552,29 +575,125 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   // Recovery challenge completion
-  const completeRecoveryChallenge = () => {
+  const completeRecoveryChallenge = (hpAmount = 10) => {
     // Add HP for completing a recovery challenge
-    setStats(prev => ({
-      ...prev,
-      hp: Math.min(prev.hp + 10, 100), // Add 10 HP, capped at 100
-    }));
-    
-    toast.success(`+10 HP recovered!`, {
-      description: "Recovery challenge completed successfully."
+    setStats(prev => {
+      const newHp = Math.min(prev.hp + hpAmount, 100);
+      const wasFullyRestored = prev.hp < 100 && newHp === 100;
+      
+      // Show appropriate notification
+      if (wasFullyRestored) {
+        toast.success('HP fully restored!', {
+          description: 'Your energy has been completely restored.',
+          icon: '⚡'
+        });
+      } else {
+        toast.success(`+${hpAmount} HP recovered!`, {
+          description: "Recovery challenge completed successfully.",
+          icon: '💚'
+        });
+      }
+      
+      return {
+        ...prev,
+        hp: newHp
+      };
     });
     
     // Update Firestore
     if (auth.currentUser) {
-      updateUserStats({ hp: Math.min(stats.hp + 10, 100) });
+      updateUserStats({ hp: Math.min(stats.hp + hpAmount, 100) }).catch(err => {
+        console.error('Failed to update HP in Firestore:', err);
+      });
     }
   };
   
   // Quest completion
-  const completeQuest = (questId: string) => {
-    // Implementation for quest completion
-    // This would update quest status and award XP
-    console.log(`Quest ${questId} completed`);
+  const completeQuest = (xpValue: number) => {
+    // Add the XP from the quest completion
+    setStats(prev => ({
+      ...prev,
+      xp: prev.xp + xpValue,
+    }));
+    
+    // Update Firestore
+    if (auth.currentUser) {
+      updateUserStats({ 
+        xp: stats.xp + xpValue,
+        questsCompleted: 1  // Increment quests completed counter
+      }).catch(err => {
+        console.error('Failed to update XP in Firestore:', err);
+      });
+    }
+    
+    console.log(`Quest completed! +${xpValue} XP awarded`);
   };
+  
+  // Hard reset stats to initial values
+  const hardReset = async () => {
+    setStats({
+      xp: 0,
+      hp: 100,
+      streak: 0,
+      maxStreak: 0,
+      lastActive: null,
+    });
+    
+    // ... existing code ...
+  };
+  
+  // Passive HP regeneration
+  useEffect(() => {
+    // Only run if the user is signed in and data is initialized
+    if (!isFirebaseInitialized || !auth.currentUser) return;
+    
+    // Check if HP is already at max
+    if (stats.hp >= 100) return;
+    
+    // Get today's date
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Check if any distraction activities were logged today
+    const hasDistractionToday = activities.some(activity => {
+      const activityDate = activity.timestamp.split('T')[0];
+      return activityDate === today && activity.type === 'distractions';
+    });
+    
+    // If no distractions today, set up passive regeneration
+    if (!hasDistractionToday) {
+      // Regenerate 2 HP per hour as per design brief
+      const regenerationInterval = setInterval(() => {
+        setStats(prev => {
+          // Only regenerate if HP is less than 100
+          if (prev.hp < 100) {
+            const newHp = Math.min(prev.hp + 2, 100);
+            
+            // If we hit 100 HP after this regeneration, show a notification
+            if (prev.hp < 100 && newHp === 100) {
+              toast.success('HP fully restored!', {
+                description: 'Your energy has been completely restored.'
+              });
+            }
+            
+            // Also update Firestore
+            if (auth.currentUser) {
+              updateUserStats({ hp: newHp }).catch(err => {
+                console.error('Failed to update HP in Firestore:', err);
+              });
+            }
+            
+            return {
+              ...prev,
+              hp: newHp
+            };
+          }
+          return prev;
+        });
+      }, 3600000); // 1 hour in milliseconds
+      
+      return () => clearInterval(regenerationInterval);
+    }
+  }, [isFirebaseInitialized, stats.hp, activities]);
   
   if (!isFirebaseInitialized) {
     // Return a loading state or the default context
@@ -594,7 +713,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         completeRecoveryChallenge,
         confirmLongSession,
         undoActivity,
-        completeQuest
+        completeQuest,
+        hardReset
       }}>
         {children}
       </GameContext.Provider>
@@ -617,7 +737,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       completeRecoveryChallenge,
       confirmLongSession,
       undoActivity,
-      completeQuest
+      completeQuest,
+      hardReset
     }}>
       {children}
       

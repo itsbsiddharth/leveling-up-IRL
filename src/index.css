@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Rajdhani:wght@300;400;500;600;700&family=Exo:wght@200;300;400;500;600;700&display=swap');
 
 @tailwind base;
@@ -62,6 +61,25 @@
 
   html {
     @apply scroll-smooth;
+  }
+}
+
+/* Add components layer with cyber-input style */
+@layer components {
+  .cyber-input {
+    @apply relative rounded-md border border-cyber-blue/50 bg-black/70 text-white px-3 py-2 w-full;
+    color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.3), inset 0 0 5px rgba(0, 255, 255, 0.1);
+    transition: all 0.2s ease;
+  }
+  
+  .cyber-input:focus {
+    @apply outline-none border-cyber-blue;
+    box-shadow: 0 0 8px rgba(0, 255, 255, 0.5), inset 0 0 8px rgba(0, 255, 255, 0.2);
+  }
+  
+  .cyber-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
   }
 }
 

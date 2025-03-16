@@ -32,7 +32,7 @@ import { COLLECTIONS } from '@/firebase/schema';
 
 const Profile = () => {
   const { currentUser, logout, signInWithGoogleAuth, sendPasswordlessEmail, updateUsername, updateProfilePicture, isLoading, error } = useAuth();
-  const { stats, activities } = useGame();
+  const { stats, activities, hardReset } = useGame();
   
   const [email, setEmail] = useState('');
   const [emailSent, setEmailSent] = useState(false);
@@ -80,9 +80,8 @@ const Profile = () => {
     .filter(a => a.type === 'distractions')
     .reduce((total, activity) => total + activity.minutes, 0);
   
-  // Calculate max streak (this would typically come from historical data)
-  // For demo purposes, we'll assume max streak is either current streak or a hardcoded value
-  const maxStreak = Math.max(stats.streak, 7); // Replace 7 with actual max streak from your data
+  // Use the maxStreak value from stats instead of hardcoded value
+  const maxStreak = stats.maxStreak;
   
   const formatTime = (minutes: number) => {
     if (minutes < 60) {
@@ -326,6 +325,7 @@ const Profile = () => {
             xp: 0,
             hp: 100,
             streak: 0,
+            maxStreak: 0,
             level: 1,
             rank: 'e-rank',
             questsCompleted: 0,
@@ -350,25 +350,19 @@ const Profile = () => {
         // 3. Commit all changes as a transaction
         await batch.commit();
         
-        // 4. Update local state through game context
-        if (stats) {
-          // Force refresh the game context data
-          window.location.reload();
-        }
+        // 4. Reset client-side state
+        await hardReset();
         
-        toast.success('Progress reset successful', {
-          description: 'Your XP, streaks, and activities have been reset.'
-        });
+        // Success message
+        toast.success("Progress reset successfully!");
+        setIsResetModalOpen(false);
+        setIsSecondConfirmOpen(false);
       }
     } catch (error) {
-      console.error('Error resetting user progress:', error);
-      toast.error('Failed to reset progress', {
-        description: 'Please try again later.'
-      });
+      console.error("Error resetting progress:", error);
+      toast.error("Failed to reset progress");
     } finally {
       setIsResetting(false);
-      setIsResetModalOpen(false);
-      setIsSecondConfirmOpen(false);
     }
   };
 
@@ -580,21 +574,7 @@ const Profile = () => {
                 <h3 className="text-lg font-semibold mb-4 text-white">Your Stats</h3>
                 
                 <div className="space-y-3">
-                  {/* Stats organized in requested order with color coding */}
-                  <StatItem 
-                    icon={<Clock className="w-4 h-4" />} 
-                    label="Total Time Tracked" 
-                    value={formatTime(totalTimeSpent)}
-                    labelColor="text-cyber-blue"
-                  />
-                  
-                  <StatItem 
-                    icon={<Activity className="w-4 h-4" />} 
-                    label="Productive Time" 
-                    value={formatTime(totalProductiveTime)}
-                    labelColor="text-cyber-blue"
-                  />
-                  
+                  {/* Stats organized in the order specified in the design brief */}
                   <StatItem 
                     icon={<BookOpen className="w-4 h-4" />} 
                     label="Intellectual Time" 
@@ -621,6 +601,22 @@ const Profile = () => {
                     label="Distractions Time" 
                     value={formatTime(totalDistractionsTime)}
                     labelColor="text-cyber-red"
+                  />
+                  
+                  <div className="border-t border-gray-800 my-2"></div>
+                  
+                  <StatItem 
+                    icon={<Activity className="w-4 h-4" />} 
+                    label="Productive Time" 
+                    value={formatTime(totalProductiveTime)}
+                    labelColor="text-cyber-blue"
+                  />
+                  
+                  <StatItem 
+                    icon={<Clock className="w-4 h-4" />} 
+                    label="Total Time Tracked" 
+                    value={formatTime(totalTimeSpent)}
+                    labelColor="text-cyber-blue"
                   />
                   
                   <div className="border-t border-gray-800 my-2"></div>

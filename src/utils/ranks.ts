@@ -1,4 +1,3 @@
-
 export interface Rank {
   id: string;
   title: string;
@@ -24,7 +23,7 @@ export const ranks: Rank[] = [
   {
     id: 'd-rank',
     title: 'D-Rank Hunter',
-    xpRequired: 1000,
+    xpRequired: 500,
     color: 'blue',
     benefits: [
       'Streak bonuses', 
@@ -36,7 +35,7 @@ export const ranks: Rank[] = [
   {
     id: 'c-rank',
     title: 'C-Rank Hunter',
-    xpRequired: 3000,
+    xpRequired: 1500,
     color: 'blue',
     benefits: [
       'Enhanced HP recovery (8 HP per 30 min)', 
@@ -48,7 +47,7 @@ export const ranks: Rank[] = [
   {
     id: 'b-rank',
     title: 'B-Rank Hunter',
-    xpRequired: 6000,
+    xpRequired: 3500,
     color: 'purple',
     benefits: [
       'Enhanced XP gains', 
@@ -60,7 +59,7 @@ export const ranks: Rank[] = [
   {
     id: 'a-rank',
     title: 'A-Rank Hunter',
-    xpRequired: 10000,
+    xpRequired: 7000,
     color: 'purple',
     benefits: [
       'Superior streak bonuses', 
