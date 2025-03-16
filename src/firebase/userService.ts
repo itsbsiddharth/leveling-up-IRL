@@ -25,6 +25,7 @@ export const syncUserData = async (userData: Partial<FirestoreUser>) => {
           xp: 0,
           hp: 100,
           streak: 0,
+          maxStreak: 0,
           level: 1,
           rank: 'e-rank',
           questsCompleted: 0,
@@ -213,6 +214,7 @@ export const migrateLocalDataToFirestore = async () => {
       xp: stats.xp || 0,
       hp: stats.hp || 100,
       streak: stats.streak || 0,
+      maxStreak: stats.maxStreak || 0,
     };
     
     if (activities) {
