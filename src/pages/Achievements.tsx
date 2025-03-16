@@ -409,20 +409,19 @@ const Achievements = memo(() => {
             
             {/* Leaderboard content */}
             <div className="flex-1 overflow-y-auto">
-              {/* Add debug info to help identify user ID issues */}
-              {currentUser && (
-                <div className="text-xs text-gray-500 mb-2 px-2">
-                  Debug: User ID = {currentUser.id}
-                </div>
-              )}
-              
               <LeaderboardTable 
                 entries={leaderboardEntries} 
-                currentUserId={currentUser?.id}
                 isLoading={isLoadingLeaderboard}
+                currentUserId={currentUser?.id}
                 error={leaderboardError}
               />
             </div>
+            
+            {leaderboardEntries.length === 0 && !isLoadingLeaderboard && !leaderboardError && (
+              <div className="text-center py-8 text-gray-400">
+                No leaderboard data available yet
+              </div>
+            )}
           </div>
         </div>
       )}
