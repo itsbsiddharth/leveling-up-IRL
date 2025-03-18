@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGame } from '@/context/GameContext';
 import { Play, Pause, RotateCcw, Save, BookOpen, Dumbbell, Clock, Heart } from 'lucide-react';
 import { toast } from 'sonner';
@@ -16,6 +16,30 @@ const TimerControl = () => {
   const [activeCategory, setActiveCategory] = useState<'intellectual' | 'physical' | 'distractions' | 'recovery'>('intellectual');
   const [manualMinutes, setManualMinutes] = useState<string>('');
   const [isHighQuality, setIsHighQuality] = useState<boolean>(false);
+  const [displayTime, setDisplayTime] = useState(0);
+  
+  // Update the display time every 100ms when the timer is running
+  useEffect(() => {
+    let intervalId: number | null = null;
+    
+    if (activeTimer.isRunning && activeTimer.startTime) {
+      intervalId = window.setInterval(() => {
+        const now = Date.now();
+        const elapsed = activeTimer.elapsedTime + (now - activeTimer.startTime);
+        // Convert to seconds for display
+        setDisplayTime(Math.floor(elapsed / 1000));
+      }, 100);
+    } else {
+      // When not running, just show the stored elapsed time
+      setDisplayTime(Math.floor(activeTimer.elapsedTime / 1000));
+    }
+    
+    return () => {
+      if (intervalId !== null) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [activeTimer.isRunning, activeTimer.startTime, activeTimer.elapsedTime]);
   
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -32,10 +56,22 @@ const TimerControl = () => {
   };
   
   const handleCategoryChange = (category: 'intellectual' | 'physical' | 'distractions' | 'recovery') => {
-    // If timer is running, automatically stop it before changing category
-    if (activeTimer.isRunning) {
+    // If timer is running, automatically log the current session before changing category
+    if (activeTimer.isRunning && activeTimer.type) {
+      // Calculate minutes for the current session
+      const minutesToLog = Math.max(1, Math.round(displayTime / 60));
+      
+      // Log the activity for the current category
+      logActivity(activeTimer.type, minutesToLog, isHighQuality);
+      
+      // Show toast that activity was logged
+      toast.success(`${activeTimer.type} activity logged: ${minutesToLog} minutes`);
+      
+      // Reset the timer
       resetTimer();
-      // Display a more informative toast that doesn't feel like an error
+    } else if (activeTimer.elapsedTime > 0) {
+      // If timer is not running but has elapsed time, just reset it
+      resetTimer();
       toast.info("Timer reset and activity changed");
     }
     
@@ -79,11 +115,11 @@ const TimerControl = () => {
       // Use manual input if provided (allow even 0 minutes)
       minutesToLog = parseInt(manualMinutes);
     } else if (activeTimer.elapsedTime > 0) {
-      // Use the timer value - convert seconds to minutes, preserving even small values
-      minutesToLog = Math.max(1, Math.round(activeTimer.elapsedTime / 60));
+      // Use the displayTime value instead of elapsedTime for more accurate timing
+      minutesToLog = Math.max(1, Math.round(displayTime / 60));
       
       // If less than 60 seconds, still log it as 1 minute minimum
-      if (activeTimer.elapsedTime < 60) {
+      if (displayTime < 60) {
         minutesToLog = 1;
       }
     }
@@ -100,6 +136,9 @@ const TimerControl = () => {
     // Reset manual input and high quality flag
     setManualMinutes('');
     setIsHighQuality(false);
+    
+    // Reset the timer after logging
+    resetTimer();
   };
   
   const getCategoryColor = () => {
@@ -192,7 +231,7 @@ const TimerControl = () => {
             activeCategory === 'physical' ? 'text-cyber-purple' :
             activeCategory === 'distractions' ? 'text-cyber-red' : 'text-green-400'
           }`}>
-            {formatTime(activeTimer.elapsedTime)}
+            {formatTime(displayTime)}
           </div>
         </div>
         
