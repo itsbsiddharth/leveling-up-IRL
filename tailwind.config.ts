@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -29,6 +28,10 @@ export default {
         ring: 'hsl(var(--ring))',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
+        'cyber-blue': '#00FFFF',
+        'cyber-purple': '#7F00FF',
+        'cyber-dark': '#0D1117',
+        'cyber-red': '#FF0055',
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))'
@@ -67,12 +70,6 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))'
         },
-        // Custom theme colors
-        'cyber-black': '#000000',
-        'cyber-dark': '#0A0F1F',
-        'cyber-blue': '#00FFFF',
-        'cyber-purple': '#7F00FF',
-        'cyber-red': '#FF3131',
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -84,12 +81,12 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: { height: '0' },
-          to: { height: 'var(--radix-accordion-content-height)' },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: { height: 'var(--radix-accordion-content-height)' },
-          to: { height: '0' },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
         "pulse-glow": {
           "0%, 100%": { 
@@ -134,6 +131,16 @@ export default {
           "20%, 24%, 55%": { 
             boxShadow: "0 0 10px 5px rgba(0, 255, 255, 0.1), 0 0 20px 10px rgba(127, 0, 255, 0.05)"
           }
+        },
+        "flicker": {
+          '0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100%': {
+            opacity: '0.99',
+            filter: 'brightness(1)'
+          },
+          '20%, 21.999%, 63%, 63.999%, 65%, 69.999%': {
+            opacity: '0.4',
+            filter: 'brightness(0.8)'
+          }
         }
       },
       animation: {
@@ -147,7 +154,8 @@ export default {
         "fade-out": "fade-out 0.3s ease-out",
         "scale-in": "scale-in 0.3s ease-out",
         "blur-in": "blur-in 0.3s ease-out",
-        "lights-on": "lights-flicker 2s forwards"
+        "lights-on": "lights-flicker 2s forwards",
+        "flicker": "flicker 8s infinite"
       }
     }
   },
