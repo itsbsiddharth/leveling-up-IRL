@@ -3,12 +3,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useGame } from '@/context/GameContext';
 import PageTransition from '@/components/layout/PageTransition';
 import { CirclePlus, BookOpen, Dumbbell, Coffee, Clock, Check, ChevronDown, ChevronUp, Save, Trash2, X, MoreHorizontal } from 'lucide-react';
-import { toast } from 'sonner';
 import { m, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
+import { showSuccessPopup, showErrorPopup, showQuestCompletePopup } from '@/utils/popupUtils';
 
 export type QuestCategory = 'intellectual' | 'physical' | 'recovery' | 'other';
 
@@ -89,7 +89,7 @@ const Quests = () => {
     } catch (error) {
       console.error('Error loading quests:', error);
       setDebugStatus(`Error loading: ${error}`);
-      toast.error('Failed to load quests');
+      showErrorPopup('Failed to load quests');
     }
   };
   
@@ -112,7 +112,7 @@ const Quests = () => {
     } catch (error) {
       console.error('Error saving quests:', error);
       setDebugStatus(`Error saving: ${error}`);
-      toast.error('Failed to save quests');
+      showErrorPopup('Failed to save quests');
     }
   };
   
@@ -212,20 +212,21 @@ const Quests = () => {
       setNewQuestTitle('');
       
       // Show success message
-      toast.success('Quest added!');
+      showSuccessPopup('Quest added!', { description: 'Your new quest has been added to your list.' });
     } catch (error) {
       console.error("Error adding quest:", error);
-      toast.error("Failed to add quest");
+      showErrorPopup("Failed to add quest");
     }
   };
   
   // Complete a quest
-  const completeQuestHandler = (id: string) => {
-    const quest = quests.find(q => q.id === id);
-    if (!quest) return;
-    
+  const handleCompleteQuest = async (id: string) => {
     try {
-      // Mark as completed
+      const quest = quests.find(q => q.id === id);
+      if (!quest) {
+        throw new Error("Quest not found");
+      }
+      
       setQuests(prev => {
         const updatedQuests = prev.map(q => 
           q.id === id 
@@ -237,15 +238,13 @@ const Quests = () => {
       });
       
       // Add XP via GameContext
-      completeQuest(quest.xpValue);
+      completeQuest(quest.xpValue, quest.title);
       
-      toast.success(`Quest completed! +${quest.xpValue} XP`, {
-        description: "XP added to your total!",
-        icon: "🌟"
-      });
+      // Use our new futuristic popup instead of toast
+      showQuestCompletePopup(quest.title, quest.xpValue);
     } catch (error) {
       console.error("Error completing quest:", error);
-      toast.error("Failed to complete quest");
+      showErrorPopup("Failed to complete quest");
     }
   };
   
@@ -258,10 +257,10 @@ const Quests = () => {
         return updatedQuests;
       });
       
-      toast.info('Quest deleted');
+      showSuccessPopup('Quest deleted', { description: 'The quest has been removed from your list.' });
     } catch (error) {
       console.error("Error deleting quest:", error);
-      toast.error("Failed to delete quest");
+      showErrorPopup("Failed to delete quest");
     }
   };
   
@@ -290,10 +289,10 @@ const Quests = () => {
       
       // Close expanded view
       setExpandedQuestId(null);
-      toast.success('Quest updated!');
+      showSuccessPopup('Quest updated!', { description: 'Your quest details have been saved.' });
     } catch (error) {
       console.error("Error saving quest edits:", error);
-      toast.error("Failed to save quest edits");
+      showErrorPopup("Failed to save quest edits");
     }
   };
   
@@ -311,7 +310,7 @@ const Quests = () => {
       });
     } catch (error) {
       console.error("Error updating category:", error);
-      toast.error("Failed to update category");
+      showErrorPopup("Failed to update category");
     }
   };
   
@@ -331,7 +330,7 @@ const Quests = () => {
       });
     } catch (error) {
       console.error("Error updating XP value:", error);
-      toast.error("Failed to update XP value");
+      showErrorPopup("Failed to update XP value");
     }
   };
   
@@ -363,7 +362,7 @@ const Quests = () => {
             <div className="flex items-center">
               {!quest.completed ? (
                 <button 
-                  onClick={() => completeQuestHandler(quest.id)} 
+                  onClick={() => handleCompleteQuest(quest.id)} 
                   className="mr-3 h-5 w-5 rounded-md border border-gray-500 flex items-center justify-center hover:bg-gray-800 transition-colors"
                   aria-label="Complete quest"
                 >

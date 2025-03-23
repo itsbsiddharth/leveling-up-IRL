@@ -4,6 +4,7 @@ import { getCurrentRank, getNextRank, getProgressToNextRank, levelWithinRank } f
 import { auth } from '../firebase';
 import { getUserData, updateUserStats, migrateLocalDataToFirestore } from '../firebase/userService';
 import { FirestoreUser, UserStats } from '../firebase/schema';
+import { usePopup } from './PopupContext';
 
 export type ActivityType = 'intellectual' | 'physical' | 'distractions' | 'recovery';
 
@@ -68,7 +69,7 @@ interface GameContextType {
   getHpForWastedTime: (minutes: number) => number;
   getHpForRecovery: (minutes: number) => number;
   completeRecoveryChallenge: (hpAmount?: number) => void;
-  completeQuest: (xpValue: number) => void;
+  completeQuest: (xpValue: number, questTitle: string) => void;
   hardReset: () => Promise<void>;
 }
 
@@ -115,6 +116,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   
   const [activities, setActivities] = useState<Activity[]>([]);
+  
+  // Access popup context
+  const { showXpChangePopup, showHpChangePopup, showLevelUpPopup, showQuestCompletePopup } = usePopup();
   
   // Timer state
   const [activeTimer, setActiveTimer] = useState({
@@ -397,6 +401,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (type === 'intellectual' || type === 'physical') {
       xpGained = getXpForActivity(minutes, isHighQuality);
       
+      // Get current and new rank to check for rank up
+      const currentRank = getCurrentRank(stats.xp);
+      const newRank = getCurrentRank(stats.xp + xpGained);
+      
       // Update stats
       setStats(prev => ({
         ...prev,
@@ -404,25 +412,30 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         lastActive: todayDate,
       }));
       
-      const currentRank = getCurrentRank(stats.xp);
-      const newRank = getCurrentRank(stats.xp + xpGained);
+      // Show XP gain popup
+      showXpChangePopup(xpGained, `${type} activity (${minutes} min)`);
       
+      // Show toast as a fallback
+      toast.success(`${xpGained} XP gained!`, {
+        description: `${type} activity (${minutes} minutes)`
+      });
+      
+      // Check if the user ranked up and show rank up popup
       if (newRank.id !== currentRank.id) {
+        showLevelUpPopup(levelWithinRank(stats.xp + xpGained), newRank.title);
+        
+        // Show toast as a fallback
         toast.success(`Rank Up! You are now a ${newRank.title}!`, {
           description: "New abilities and benefits unlocked."
         });
       }
       
-      // Always show a notification, even for 0 XP
-      toast.success(`+${xpGained} XP gained!`, {
-        description: `Logged ${minutes} minutes of ${type}${isHighQuality ? ' (high quality)' : ''}.`
-      });
     } else if (type === 'distractions') {
       hpLost = getHpForWastedTime(minutes);
       
       // Update stats
       setStats(prev => {
-        const newHp = Math.max(prev.hp - hpLost, 0);
+        const newHp = Math.max(0, prev.hp - hpLost);
         const wasAtZero = newHp === 0 && prev.hp > 0;
         
         if (wasAtZero) {
@@ -438,22 +451,30 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       });
       
-      // Always show a notification, even for 0 HP loss
-      toast.error(`-${hpLost} HP lost!`, {
-        description: `Logged ${minutes} minutes of distractions.`
+      // Show HP loss popup
+      showHpChangePopup(-hpLost, `distractions (${minutes} min)`);
+      
+      // Show toast as a fallback
+      toast.error(`${hpLost} HP lost!`, {
+        description: `Distractions (${minutes} minutes)`
       });
+      
     } else if (type === 'recovery') {
       hpGained = getHpForRecovery(minutes);
       
+      // Update stats with a cap at 100 HP
       setStats(prev => ({
         ...prev,
-        hp: Math.min(prev.hp + hpGained, 100), // Cap at maximum HP
+        hp: Math.min(100, prev.hp + hpGained),
         lastActive: todayDate,
       }));
       
-      // Always show a notification, even for 0 HP gain
-      toast.success(`+${hpGained} HP recovered!`, {
-        description: `Logged ${minutes} minutes of recovery time.`
+      // Show HP gain popup
+      showHpChangePopup(hpGained, `recovery (${minutes} min)`);
+      
+      // Show toast as a fallback
+      toast.success(`${hpGained} HP recovered!`, {
+        description: `Recovery (${minutes} minutes)`
       });
     }
     
@@ -609,12 +630,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   // Quest completion
-  const completeQuest = (xpValue: number) => {
+  const completeQuest = (xpValue: number, questTitle: string = "Quest") => {
     // Add the XP from the quest completion
     setStats(prev => ({
       ...prev,
       xp: prev.xp + xpValue,
     }));
+    
+    // Show quest complete popup with the quest title and XP gained
+    showXpChangePopup(xpValue, `Quest completed: ${questTitle}`);
+    
+    // Also show the dedicated quest completion popup
+    if (showQuestCompletePopup) {
+      showQuestCompletePopup(questTitle, xpValue);
+    }
     
     // Update Firestore
     if (auth.currentUser) {

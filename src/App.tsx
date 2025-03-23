@@ -6,7 +6,10 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { GameProvider } from "@/context/GameContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { PopupProvider, usePopup } from "@/context/PopupContext";
+import { GamePopups } from "@/components/popups/GamePopups";
 import { lazy, Suspense, useState, useEffect, Component, ErrorInfo } from "react";
+import { setPopupContextRef } from "@/utils/popupUtils";
 
 // Eager load the main page for better initial load
 import Index from "./pages/Index";
@@ -174,6 +177,18 @@ const AnimatedRoutes = () => {
   );
 };
 
+// Initialize popup context for global access
+const PopupInitializer = ({ children }: { children: React.ReactNode }) => {
+  const popupContext = usePopup();
+  
+  useEffect(() => {
+    // Set the popup context reference for global access
+    setPopupContextRef(popupContext);
+  }, [popupContext]);
+  
+  return <>{children}</>;
+};
+
 const App = () => {
   // Add debugging tools to window object (development only)
   if (process.env.NODE_ENV === 'development') {
@@ -192,11 +207,16 @@ const App = () => {
         <TooltipProvider>
           <AuthProvider>
             <GameProvider>
-              <Toaster />
-              <Sonner theme="dark" closeButton position="bottom-center" />
-              <BrowserRouter>
-                <AnimatedRoutes />
-              </BrowserRouter>
+              <PopupProvider>
+                <PopupInitializer>
+                  <Toaster />
+                  <Sonner theme="dark" closeButton position="bottom-center" />
+                  <GamePopups />
+                  <BrowserRouter>
+                    <AnimatedRoutes />
+                  </BrowserRouter>
+                </PopupInitializer>
+              </PopupProvider>
             </GameProvider>
           </AuthProvider>
         </TooltipProvider>
