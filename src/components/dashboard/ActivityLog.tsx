@@ -2,7 +2,7 @@ import React from 'react';
 import { useGame } from '@/context/GameContext';
 import { BookOpen, Dumbbell, Clock, Heart, Award, RotateCcw } from 'lucide-react';
 import { isToday } from '@/utils/activityUtils';
-import { toast } from 'sonner';
+import { showSuccessPopup, showErrorPopup } from '@/utils/popupUtils';
 
 const ActivityLog = () => {
   const { activities, undoActivity } = useGame();
@@ -54,14 +54,14 @@ const ActivityLog = () => {
     try {
       undoActivity(activityId);
       
-      // Show success toast
-      toast.success('Activity undone', {
+      // Show success popup
+      showSuccessPopup('Activity Undone', {
         description: 'Progress has been updated.'
       });
     } catch (error) {
       console.error('Error undoing activity:', error);
-      toast.error('Failed to undo activity', {
-        description: 'Please try again later.'
+      showErrorPopup('Undo Failed', {
+        description: 'Could not undo this activity. Please try again.'
       });
     }
   };

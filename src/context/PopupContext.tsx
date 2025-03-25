@@ -74,6 +74,10 @@ interface PopupContextType {
   setQuestCompleteData: React.Dispatch<React.SetStateAction<QuestCompleteData>>;
   questAddedData: QuestAddedData;
   setQuestAddedData: React.Dispatch<React.SetStateAction<QuestAddedData>>;
+  
+  // Generic notification popups
+  showErrorPopup: (title: string, options?: { description?: string; icon?: React.ReactNode }) => void;
+  showInfoPopup: (title: string, options?: { description?: string; icon?: React.ReactNode }) => void;
 }
 
 const PopupContext = createContext<PopupContextType>({
@@ -105,6 +109,9 @@ const PopupContext = createContext<PopupContextType>({
   setQuestCompleteData: () => {},
   questAddedData: { visible: false, title: '' },
   setQuestAddedData: () => {},
+  
+  showErrorPopup: () => {},
+  showInfoPopup: () => {},
 });
 
 export const usePopup = () => useContext(PopupContext);
@@ -187,6 +194,33 @@ export const PopupProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }, 3000);
   };
   
+  // Generic notification handlers
+  const showErrorPopup = (title: string, options?: { description?: string; icon?: React.ReactNode }) => {
+    setHpChangeData({
+      visible: true,
+      amount: -5,
+      reason: options?.description || title
+    });
+    
+    // Auto-close after 3 seconds
+    setTimeout(() => {
+      setHpChangeData(prev => ({ ...prev, visible: false }));
+    }, 3000);
+  };
+  
+  const showInfoPopup = (title: string, options?: { description?: string; icon?: React.ReactNode }) => {
+    setXpChangeData({
+      visible: true,
+      amount: 0,
+      reason: options?.description || title
+    });
+    
+    // Auto-close after 3 seconds
+    setTimeout(() => {
+      setXpChangeData(prev => ({ ...prev, visible: false }));
+    }, 3000);
+  };
+  
   return (
     <PopupContext.Provider value={{
       isWelcomePopupVisible,
@@ -218,6 +252,9 @@ export const PopupProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setQuestCompleteData,
       questAddedData,
       setQuestAddedData,
+      
+      showErrorPopup,
+      showInfoPopup
     }}>
       {children}
     </PopupContext.Provider>

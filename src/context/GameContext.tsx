@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { toast } from 'sonner';
 import { getCurrentRank, getNextRank, getProgressToNextRank, levelWithinRank } from '@/utils/ranks';
 import { auth } from '../firebase';
 import { getUserData, updateUserStats, migrateLocalDataToFirestore } from '../firebase/userService';
 import { FirestoreUser, UserStats } from '../firebase/schema';
 import { usePopup } from './PopupContext';
+import { showXpGainPopup, showHpChangePopup, showLevelUpPopup, showQuestCompletePopup, showErrorPopup, showSuccessPopup, showInfoPopup } from '@/utils/popupUtils';
 
 export type ActivityType = 'intellectual' | 'physical' | 'distractions' | 'recovery';
 
@@ -118,7 +118,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activities, setActivities] = useState<Activity[]>([]);
   
   // Access popup context
-  const { showXpChangePopup, showHpChangePopup, showLevelUpPopup, showQuestCompletePopup } = usePopup();
+  const { showXpChangePopup, showHpChangePopup, showLevelUpPopup, showQuestCompletePopup, showErrorPopup } = usePopup();
   
   // Timer state
   const [activeTimer, setActiveTimer] = useState({
@@ -211,7 +211,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       // Show streak notification
-      toast.success(`Streak increased to ${stats.streak + 1} days!`, {
+      showSuccessPopup(`Streak increased to ${stats.streak + 1} days!`, {
         description: "Keep up the momentum!"
       });
     } else if (stats.lastActive !== today) {
@@ -224,7 +224,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }));
       
       // Show streak reset notification
-      toast.info(`New streak started!`, {
+      showInfoPopup(`New streak started!`, {
         description: "Let's build momentum day by day."
       });
     }
@@ -415,19 +415,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Show XP gain popup
       showXpChangePopup(xpGained, `${type} activity (${minutes} min)`);
       
-      // Show toast as a fallback
-      toast.success(`${xpGained} XP gained!`, {
-        description: `${type} activity (${minutes} minutes)`
-      });
-      
       // Check if the user ranked up and show rank up popup
       if (newRank.id !== currentRank.id) {
         showLevelUpPopup(levelWithinRank(stats.xp + xpGained), newRank.title);
-        
-        // Show toast as a fallback
-        toast.success(`Rank Up! You are now a ${newRank.title}!`, {
-          description: "New abilities and benefits unlocked."
-        });
       }
       
     } else if (type === 'distractions') {
@@ -439,7 +429,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const wasAtZero = newHp === 0 && prev.hp > 0;
         
         if (wasAtZero) {
-          toast.error(`CRITICAL DAMAGE: Your energy is depleted!`, {
+          showErrorPopup(`CRITICAL DAMAGE: Your energy is depleted!`, {
             description: "Complete a recovery activity to restore your HP."
           });
         }
@@ -454,11 +444,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Show HP loss popup
       showHpChangePopup(-hpLost, `distractions (${minutes} min)`);
       
-      // Show toast as a fallback
-      toast.error(`${hpLost} HP lost!`, {
-        description: `Distractions (${minutes} minutes)`
-      });
-      
     } else if (type === 'recovery') {
       hpGained = getHpForRecovery(minutes);
       
@@ -471,11 +456,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Show HP gain popup
       showHpChangePopup(hpGained, `recovery (${minutes} min)`);
-      
-      // Show toast as a fallback
-      toast.success(`${hpGained} HP recovered!`, {
-        description: `Recovery (${minutes} minutes)`
-      });
     }
     
     // Create and add new activity
@@ -604,14 +584,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Show appropriate notification
       if (wasFullyRestored) {
-        toast.success('HP fully restored!', {
-          description: 'Your energy has been completely restored.',
-          icon: '⚡'
+        showSuccessPopup('HP fully restored!', {
+          description: 'Your energy has been completely restored.'
         });
       } else {
-        toast.success(`+${hpAmount} HP recovered!`, {
+        showSuccessPopup(`+${hpAmount} HP recovered!`, {
           description: "Recovery challenge completed successfully.",
-          icon: '💚'
+          hp: hpAmount
         });
       }
       
@@ -699,7 +678,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             // If we hit 100 HP after this regeneration, show a notification
             if (prev.hp < 100 && newHp === 100) {
-              toast.success('HP fully restored!', {
+              showSuccessPopup('HP fully restored!', {
                 description: 'Your energy has been completely restored.'
               });
             }

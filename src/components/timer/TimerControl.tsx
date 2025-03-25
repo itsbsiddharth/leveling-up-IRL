@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGame } from '@/context/GameContext';
 import { Play, Pause, RotateCcw, Save, BookOpen, Dumbbell, Clock, Heart } from 'lucide-react';
-import { toast } from 'sonner';
+import { usePopup } from '@/context/PopupContext';
 
 const TimerControl = () => {
   const { 
@@ -12,6 +12,13 @@ const TimerControl = () => {
     resetTimer, 
     logActivity 
   } = useGame();
+  
+  const { 
+    showXpChangePopup, 
+    showHpChangePopup, 
+    showInfoPopup, 
+    showErrorPopup 
+  } = usePopup();
   
   const [activeCategory, setActiveCategory] = useState<'intellectual' | 'physical' | 'distractions' | 'recovery'>('intellectual');
   const [manualMinutes, setManualMinutes] = useState<string>('');
@@ -64,15 +71,24 @@ const TimerControl = () => {
       // Log the activity for the current category
       logActivity(activeTimer.type, minutesToLog, isHighQuality);
       
-      // Show toast that activity was logged
-      toast.success(`${activeTimer.type} activity logged: ${minutesToLog} minutes`);
+      // Show activity logged popup based on the type
+      if (activeTimer.type === 'intellectual' || activeTimer.type === 'physical') {
+        const xpGained = getXpForActivity(minutesToLog, isHighQuality);
+        showXpChangePopup(xpGained, `${activeTimer.type} activity (${minutesToLog} min)`);
+      } else if (activeTimer.type === 'distractions') {
+        const hpLost = getHpForWastedTime(minutesToLog);
+        showHpChangePopup(-hpLost, `distractions (${minutesToLog} min)`);
+      } else if (activeTimer.type === 'recovery') {
+        const hpGained = getHpForRecovery(minutesToLog);
+        showHpChangePopup(hpGained, `recovery (${minutesToLog} min)`);
+      }
       
       // Reset the timer
       resetTimer();
     } else if (activeTimer.elapsedTime > 0) {
       // If timer is not running but has elapsed time, just reset it
       resetTimer();
-      toast.info("Timer reset and activity changed");
+      showInfoPopup("Timer reset", { description: "Activity category changed" });
     }
     
     // Change the category immediately
@@ -126,12 +142,24 @@ const TimerControl = () => {
     
     // Always allow logging, even for small values
     if (minutesToLog < 0) {
-      toast.error("Please enter a valid time");
+      showErrorPopup("Invalid Time Entry", { description: "Please enter a valid time" });
       return;
     }
     
     // Log the activity
     logActivity(activeCategory, minutesToLog, isHighQuality);
+    
+    // Show appropriate popup based on the activity type
+    if (activeCategory === 'intellectual' || activeCategory === 'physical') {
+      const xpGained = getXpForActivity(minutesToLog, isHighQuality);
+      showXpChangePopup(xpGained, `${activeCategory} activity (${minutesToLog} min)`);
+    } else if (activeCategory === 'distractions') {
+      const hpLost = getHpForWastedTime(minutesToLog);
+      showHpChangePopup(-hpLost, `distractions (${minutesToLog} min)`);
+    } else if (activeCategory === 'recovery') {
+      const hpGained = getHpForRecovery(minutesToLog);
+      showHpChangePopup(hpGained, `recovery (${minutesToLog} min)`);
+    }
     
     // Reset manual input and high quality flag
     setManualMinutes('');
@@ -139,6 +167,29 @@ const TimerControl = () => {
     
     // Reset the timer after logging
     resetTimer();
+  };
+  
+  // Helper functions to calculate XP and HP changes
+  const getXpForActivity = (minutes: number, isHighQuality: boolean): number => {
+    // Base XP calculation: 1 XP per minute
+    let xp = minutes;
+    
+    // If high quality, add a 50% bonus
+    if (isHighQuality) {
+      xp = Math.ceil(xp * 1.5);
+    }
+    
+    return xp;
+  };
+  
+  const getHpForWastedTime = (minutes: number): number => {
+    // Lose 1 HP per 5 minutes of distractions, minimum 1 HP
+    return Math.max(1, Math.floor(minutes / 5));
+  };
+  
+  const getHpForRecovery = (minutes: number): number => {
+    // Gain 10 HP per 5 minutes of recovery, minimum 5 HP
+    return Math.max(5, Math.floor(minutes / 5) * 10);
   };
   
   const getCategoryColor = () => {

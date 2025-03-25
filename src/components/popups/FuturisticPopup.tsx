@@ -1,7 +1,34 @@
-import { useEffect, ReactNode, useRef } from 'react';
+import { useEffect, ReactNode, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Howl } from 'howler';
 import confetti from 'canvas-confetti';
+
+// Sound cache implementation for immediate playback
+const soundCache: Record<string, Howl> = {};
+
+// List of common sounds to preload
+const commonSounds = [
+  '/sounds/success.mp3',
+  '/sounds/error.mp3',
+  '/sounds/info.mp3',
+  '/sounds/xp-gain.mp3',
+  '/sounds/hp-change.mp3',
+  '/sounds/level-up.mp3',
+  '/sounds/quest-complete.mp3',
+  '/sounds/quest-added.mp3',
+  '/sounds/welcome.mp3'
+];
+
+// Preload common sounds
+commonSounds.forEach(sound => {
+  if (!soundCache[sound]) {
+    soundCache[sound] = new Howl({
+      src: [sound],
+      preload: true,
+      volume: 0.5
+    });
+  }
+});
 
 interface FuturisticPopupProps {
   visible: boolean;
@@ -35,23 +62,28 @@ export function FuturisticPopup({
   const soundPlayedRef = useRef(false);
   const confettiRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isActive, setIsActive] = useState(false);
   
   // Play sound effect when popup becomes visible
   useEffect(() => {
     if (visible && soundPath && !soundPlayedRef.current) {
       try {
-        console.log(`Attempting to play sound: ${soundPath}`);
-        const sound = new Howl({
-          src: [soundPath],
-          volume: 0.5,
-          onload: () => console.log(`Sound loaded successfully: ${soundPath}`),
-          onloaderror: (id, error) => console.error(`Error loading sound: ${soundPath}`, error),
-          onplayerror: (id, error) => console.error(`Error playing sound: ${soundPath}`, error)
-        });
+        // Get sound from cache or create a new one
+        let sound = soundCache[soundPath];
+        
+        if (!sound) {
+          sound = new Howl({
+            src: [soundPath],
+            volume: 0.5
+          });
+          soundCache[soundPath] = sound;
+        }
+        
+        // Play the sound immediately
         sound.play();
         soundPlayedRef.current = true;
       } catch (error) {
-        console.error('Error initializing or playing sound:', error);
+        console.error('Error playing sound:', error);
       }
     }
     
@@ -59,6 +91,9 @@ export function FuturisticPopup({
     if (!visible) {
       soundPlayedRef.current = false;
       confettiRef.current = false;
+      setIsActive(false);
+    } else {
+      setIsActive(true);
     }
   }, [visible, soundPath]);
   
@@ -115,26 +150,30 @@ export function FuturisticPopup({
         return {
           border: 'border-red-500',
           shadow: 'shadow-[0_0_20px_#FF0000,0_0_40px_rgba(255,0,0,0.3)]',
-          textShadow: '0 0 5px #fff, 0 0 10px #fff, 0 0 15px #FF0000, 0 0 20px #FF0000'
+          textShadow: '0 0 5px #fff, 0 0 10px #fff, 0 0 15px #FF0000, 0 0 20px #FF0000',
+          pulseColor: 'bg-red-500'
         };
       case 'green':
         return {
           border: 'border-green-500',
           shadow: 'shadow-[0_0_20px_#00FF00,0_0_40px_rgba(0,255,0,0.3)]',
-          textShadow: '0 0 5px #fff, 0 0 10px #fff, 0 0 15px #00FF00, 0 0 20px #00FF00'
+          textShadow: '0 0 5px #fff, 0 0 10px #fff, 0 0 15px #00FF00, 0 0 20px #00FF00',
+          pulseColor: 'bg-green-500'
         };
       case 'purple':
         return {
           border: 'border-purple-500',
           shadow: 'shadow-[0_0_20px_#7F00FF,0_0_40px_rgba(127,0,255,0.3)]',
-          textShadow: '0 0 5px #fff, 0 0 10px #fff, 0 0 15px #7F00FF, 0 0 20px #7F00FF'
+          textShadow: '0 0 5px #fff, 0 0 10px #fff, 0 0 15px #7F00FF, 0 0 20px #7F00FF',
+          pulseColor: 'bg-purple-500'
         };
       case 'blue':
       default:
         return {
           border: 'border-cyan-500',
           shadow: 'shadow-[0_0_20px_#00FFFF,0_0_40px_rgba(0,255,255,0.3)]',
-          textShadow: '0 0 5px #fff, 0 0 10px #fff, 0 0 15px #00FFFF, 0 0 20px #00FFFF'
+          textShadow: '0 0 5px #fff, 0 0 10px #fff, 0 0 15px #00FFFF, 0 0 20px #00FFFF',
+          pulseColor: 'bg-cyan-500'
         };
     }
   };
@@ -178,6 +217,13 @@ export function FuturisticPopup({
           >
             {/* Futuristic popup with neon border */}
             <div className={`relative border-2 ${glowStyles.border} ${glowStyles.shadow} rounded-md overflow-hidden bg-cyber-dark/90`}>
+              {/* Subtle pulse effect */}
+              {isActive && (
+                <div className="absolute inset-0 overflow-hidden">
+                  <div className={`w-full h-full ${glowStyles.pulseColor} opacity-10 animate-pulse animate-flicker`}></div>
+                </div>
+              )}
+              
               {/* Background animation effect */}
               {backgroundImage && (
                 <div 
