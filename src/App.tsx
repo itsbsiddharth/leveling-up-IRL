@@ -11,6 +11,7 @@ import { GamePopups } from "@/components/popups/GamePopups";
 import { lazy, Suspense, useState, useEffect, Component, ErrorInfo } from "react";
 import { setPopupContextRef } from "@/utils/popupUtils";
 import MusicPlayer from "@/components/ui/MusicPlayer";
+import MusicPlayerDebug from "@/components/ui/MusicPlayerDebug";
 
 // Eager load the main page for better initial load
 import Index from "./pages/Index";
@@ -213,9 +214,23 @@ const App = () => {
                   <PopupInitializer>
                     <Toaster />
                     <GamePopups />
+                    {/* Render MusicPlayer outside of BrowserRouter to prevent routing-related issues */}
+                    <div 
+                      id="music-player-container" 
+                      style={{
+                        position: 'fixed',
+                        bottom: '80px',
+                        right: '20px',
+                        zIndex: 9999,
+                        width: 'auto',
+                        height: 'auto'
+                      }}
+                    >
+                      <MusicPlayer />
+                    </div>
+                    {process.env.NODE_ENV === 'development' && <MusicPlayerDebug />}
                     <BrowserRouter>
                       <AnimatedRoutes />
-                      <MusicPlayer />
                     </BrowserRouter>
                   </PopupInitializer>
                 </MusicProvider>

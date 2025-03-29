@@ -421,19 +421,66 @@ const MusicPlayer: React.FC = () => {
   // Set up refs for drag constraints
   const containerRef = useRef<HTMLDivElement>(null);
   
+  // Log visibility for debugging
+  useEffect(() => {
+    console.log('MusicPlayer mounted, isMinimized:', isMinimized);
+    console.log('Player position:', playerPosition);
+  }, [isMinimized, playerPosition]);
+  
+  // Initialize position properly on first render
+  useEffect(() => {
+    // Ensure the player is positioned on screen with safe defaults
+    const safePosition = {
+      x: Math.min(playerPosition.x, window.innerWidth - 100),
+      y: Math.min(playerPosition.y, window.innerHeight - 150),
+      width: playerPosition.width,
+      height: playerPosition.height
+    };
+    
+    // If position appears to be off-screen, reset to a safe position
+    if (safePosition.x < 0 || safePosition.y < 0 || 
+        safePosition.x > window.innerWidth || 
+        safePosition.y > window.innerHeight) {
+      const defaultX = window.innerWidth - 320 - 16;
+      const defaultY = window.innerHeight - 400 - 80;
+      
+      setPlayerPosition({
+        x: defaultX > 0 ? defaultX : 16,
+        y: defaultY > 0 ? defaultY : 16,
+        width: playerPosition.width,
+        height: playerPosition.height
+      });
+    } else if (safePosition.x !== playerPosition.x || safePosition.y !== playerPosition.y) {
+      setPlayerPosition(safePosition);
+    }
+  }, []);
+  
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       if (containerRef.current) {
-        setPlayerPosition({
-          ...playerPosition,
-          x: Math.min(playerPosition.x, window.innerWidth - playerPosition.width),
-          y: Math.min(playerPosition.y, window.innerHeight - playerPosition.height - 80) // Keep above navbar
+        setPlayerPosition(prev => {
+          // Make sure player stays within viewport
+          const newX = Math.min(prev.x, window.innerWidth - prev.width - 16);
+          const newY = Math.min(prev.y, window.innerHeight - prev.height - 80); // Keep above navbar
+          
+          // Ensure positive values
+          const safeX = Math.max(0, newX);
+          const safeY = Math.max(0, newY);
+          
+          return {
+            ...prev,
+            x: safeX,
+            y: safeY
+          };
         });
       }
     };
     
     window.addEventListener('resize', handleResize);
+    // Call once to ensure proper positioning
+    handleResize();
+    
     return () => window.removeEventListener('resize', handleResize);
   }, [playerPosition, setPlayerPosition]);
   
@@ -446,9 +493,11 @@ const MusicPlayer: React.FC = () => {
       }
     };
     
-    navbarElements.forEach(el => {
-      el.addEventListener('click', handleNavClick);
-    });
+    setTimeout(() => {
+      navbarElements.forEach(el => {
+        el.addEventListener('click', handleNavClick);
+      });
+    }, 1000); // Delay to ensure navbar is mounted
     
     return () => {
       navbarElements.forEach(el => {
@@ -479,180 +528,180 @@ const MusicPlayer: React.FC = () => {
   // Render minimized player
   if (isMinimized) {
     return (
-      <Draggable
-        defaultPosition={{ x: playerPosition.x, y: playerPosition.y }}
-        onStop={handleDragStop}
-        bounds="parent"
+      <button
+        className="rounded-full p-1 shadow-lg z-[9999] cursor-pointer"
+        style={{
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(10px)',
+          border: `1px solid ${color}`,
+          boxShadow: `0 0 15px ${color}80`
+        }}
+        onClick={toggleMinimized}
+        data-testid="music-player-minimized"
       >
-        <div 
-          ref={containerRef}
-          className="fixed p-1 rounded-full shadow-lg z-50 cursor-pointer"
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center"
           style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            backdropFilter: 'blur(10px)',
-            border: `1px solid ${color}`,
-            boxShadow: `0 0 15px ${color}80`
+            background: `radial-gradient(circle, ${color}40 0%, transparent 70%)`,
           }}
         >
-          <button
-            className="w-10 h-10 rounded-full flex items-center justify-center"
-            onClick={toggleMinimized}
-            style={{
-              background: `radial-gradient(circle, ${color}40 0%, transparent 70%)`,
-            }}
-          >
-            <Music 
-              size={20} 
-              color={color}
-              className={isPlaying ? 'animate-pulse' : ''}
-            />
-          </button>
+          <Music 
+            size={20} 
+            color={color}
+            className={isPlaying ? 'animate-pulse' : ''}
+          />
         </div>
-      </Draggable>
+      </button>
     );
   }
   
-  // Render full player
+  // Render full player with absolute positioning instead of Draggable in fixed
   return (
-    <Draggable
-      handle=".drag-handle"
-      defaultPosition={{ x: playerPosition.x, y: playerPosition.y }}
-      onStop={handleDragStop}
-      bounds="parent"
+    <div 
+      className="fixed bottom-20 right-4 z-[1000]" 
+      data-testid="music-player-expanded"
     >
-      <Resizable
-        width={playerPosition.width}
-        height={playerPosition.height}
-        minConstraints={[250, 300]}
-        maxConstraints={[500, 600]}
-        onResizeStart={() => setIsResizing(true)}
-        onResizeStop={handleResizeStop}
-        resizeHandles={['se']}
-        handle={<ResizeHandle color={color} />}
+      <Draggable
+        handle=".drag-handle"
+        defaultPosition={{ x: 0, y: 0 }}
+        position={{ x: 0, y: 0 }}
+        onStop={handleDragStop}
+        bounds="parent"
       >
-        <div 
-          ref={containerRef}
-          className="fixed overflow-hidden rounded-lg shadow-2xl z-50"
-          style={{
-            width: `${playerPosition.width}px`,
-            height: `${playerPosition.height}px`,
-            backgroundColor: 'rgba(0, 0, 0, 0.85)',
-            backdropFilter: 'blur(10px)',
-            border: `1px solid ${color}80`,
-            boxShadow: `0 0 20px ${color}30`
-          }}
+        <Resizable
+          width={playerPosition.width}
+          height={playerPosition.height}
+          minConstraints={[250, 300]}
+          maxConstraints={[500, 600]}
+          onResizeStart={() => setIsResizing(true)}
+          onResizeStop={handleResizeStop}
+          resizeHandles={['se']}
+          handle={<ResizeHandle color={color} />}
         >
-          {/* Scanline overlay */}
           <div 
-            className="absolute inset-0 pointer-events-none opacity-10 z-0"
+            ref={containerRef}
+            className="overflow-hidden rounded-lg shadow-2xl"
             style={{
-              backgroundImage: 'linear-gradient(transparent 50%, rgba(0, 0, 0, 0.1) 50%)',
-              backgroundSize: '100% 4px'
+              width: `${playerPosition.width}px`,
+              height: `${playerPosition.height}px`,
+              backgroundColor: 'rgba(0, 0, 0, 0.85)',
+              backdropFilter: 'blur(10px)',
+              border: `1px solid ${color}80`,
+              boxShadow: `0 0 20px ${color}30`
             }}
-          />
-          
-          {/* Diagonal accent line */}
-          <div 
-            className="absolute transform rotate-45 opacity-20 pointer-events-none z-0" 
-            style={{ 
-              top: '50%',
-              left: '-50%',
-              right: '-50%',
-              height: '1px',
-              background: `linear-gradient(90deg, transparent 0%, ${color} 50%, transparent 100%)`,
-            }}
-          />
-          
-          {/* Drag handle */}
-          <div className="drag-handle">
-            <DragHandle color={color} />
-          </div>
-          
-          {/* Minimize button */}
-          <div className="absolute top-1 right-1 z-20">
-            <CyberButton
-              onClick={toggleMinimized}
-              color={color}
-              size="sm"
-            >
-              <Minimize2 size={14} />
-            </CyberButton>
-          </div>
-          
-          {/* Content container with proper padding */}
-          <div className="flex flex-col p-3 pt-8 h-full">
-            {/* Track selector */}
-            <div className="mb-3">
-              <TrackSelector color={color} />
+          >
+            {/* Scanline overlay */}
+            <div 
+              className="absolute inset-0 pointer-events-none opacity-10 z-0"
+              style={{
+                backgroundImage: 'linear-gradient(transparent 50%, rgba(0, 0, 0, 0.1) 50%)',
+                backgroundSize: '100% 4px'
+              }}
+            />
+            
+            {/* Diagonal accent line */}
+            <div 
+              className="absolute transform rotate-45 opacity-20 pointer-events-none z-0" 
+              style={{ 
+                top: '50%',
+                left: '-50%',
+                right: '-50%',
+                height: '1px',
+                background: `linear-gradient(90deg, transparent 0%, ${color} 50%, transparent 100%)`,
+              }}
+            />
+            
+            {/* Drag handle */}
+            <div className="drag-handle">
+              <DragHandle color={color} />
             </div>
             
-            {/* Visualizer */}
-            <div className="mb-3">
-              <AudioVisualizer 
-                audioData={audioData} 
+            {/* Minimize button */}
+            <div className="absolute top-1 right-1 z-20">
+              <CyberButton
+                onClick={toggleMinimized}
                 color={color}
-                height={Math.min(80, playerPosition.height * 0.2)}
-              />
+                size="sm"
+              >
+                <Minimize2 size={14} />
+              </CyberButton>
             </div>
             
-            {/* Progress Bar */}
-            <div className="mb-3">
-              <ProgressBar />
-            </div>
-            
-            {/* Playback controls */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-1">
-                <CyberButton
-                  onClick={previous}
-                  color={color}
-                  size="sm"
-                >
-                  <SkipBack size={16} />
-                </CyberButton>
-                
-                <CyberButton
-                  onClick={togglePlay}
-                  color={color}
-                  size="lg"
-                  className="w-10 h-10 flex items-center justify-center"
-                >
-                  {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-                </CyberButton>
-                
-                <CyberButton
-                  onClick={next}
-                  color={color}
-                  size="sm"
-                >
-                  <SkipForward size={16} />
-                </CyberButton>
-                
-                <CyberButton
-                  onClick={toggleLoop}
-                  color={color}
-                  size="sm"
-                  active={isLoopMode}
-                >
-                  <RefreshCw size={14} />
-                </CyberButton>
+            {/* Content container with proper padding */}
+            <div className="flex flex-col p-3 pt-8 h-full">
+              {/* Track selector */}
+              <div className="mb-3">
+                <TrackSelector color={color} />
               </div>
               
-              <VolumeControl />
-            </div>
-            
-            {/* Status bar */}
-            <div 
-              className="mt-auto pt-2 border-t flex justify-between text-[9px] font-mono uppercase opacity-70"
-              style={{ borderColor: `${color}40` }}
-            >
-              <span>{currentTrack.name}</span>
-              <span>{isPlaying ? 'Playing' : 'Paused'}</span>
+              {/* Visualizer */}
+              <div className="mb-3">
+                <AudioVisualizer 
+                  audioData={audioData} 
+                  color={color}
+                  height={Math.min(80, playerPosition.height * 0.2)}
+                />
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="mb-3">
+                <ProgressBar />
+              </div>
+              
+              {/* Playback controls */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-1">
+                  <CyberButton
+                    onClick={previous}
+                    color={color}
+                    size="sm"
+                  >
+                    <SkipBack size={16} />
+                  </CyberButton>
+                  
+                  <CyberButton
+                    onClick={togglePlay}
+                    color={color}
+                    size="lg"
+                    className="w-10 h-10 flex items-center justify-center"
+                  >
+                    {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+                  </CyberButton>
+                  
+                  <CyberButton
+                    onClick={next}
+                    color={color}
+                    size="sm"
+                  >
+                    <SkipForward size={16} />
+                  </CyberButton>
+                  
+                  <CyberButton
+                    onClick={toggleLoop}
+                    color={color}
+                    size="sm"
+                    active={isLoopMode}
+                  >
+                    <RefreshCw size={14} />
+                  </CyberButton>
+                </div>
+                
+                <VolumeControl />
+              </div>
+              
+              {/* Status bar */}
+              <div 
+                className="mt-auto pt-2 border-t flex justify-between text-[9px] font-mono uppercase opacity-70"
+                style={{ borderColor: `${color}40` }}
+              >
+                <span>{currentTrack.name}</span>
+                <span>{isPlaying ? 'Playing' : 'Paused'}</span>
+              </div>
             </div>
           </div>
-        </div>
-      </Resizable>
-    </Draggable>
+        </Resizable>
+      </Draggable>
+    </div>
   );
 };
 

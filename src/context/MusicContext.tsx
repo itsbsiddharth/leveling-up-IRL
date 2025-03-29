@@ -103,11 +103,26 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [audioData, setAudioData] = useState<number[]>(Array(32).fill(0.05));
   
   // Default position in bottom right, but not overlapping the nav
-  const [playerPosition, setPlayerPosition] = useState<PlayerPosition>({
-    x: window.innerWidth - 320 - 16,  // 16px from right edge
-    y: window.innerHeight - 400 - 80, // 80px above navbar
-    width: 320,
-    height: 400
+  const [playerPosition, setPlayerPosition] = useState<PlayerPosition>(() => {
+    // Safe fallback values
+    const defaultWidth = 320;
+    const defaultHeight = 400;
+    
+    // Only use window dimensions if available (client-side)
+    let x = 16;
+    let y = 16;
+    
+    if (typeof window !== 'undefined' && window.innerWidth && window.innerHeight) {
+      x = Math.max(16, window.innerWidth - defaultWidth - 20);
+      y = Math.max(16, window.innerHeight - defaultHeight - 100);
+    }
+    
+    return {
+      x,
+      y,
+      width: defaultWidth,
+      height: defaultHeight
+    };
   });
   
   const progressIntervalRef = useRef<number | null>(null);
