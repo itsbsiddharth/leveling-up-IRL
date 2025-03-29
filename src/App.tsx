@@ -9,6 +9,7 @@ import { PopupProvider, usePopup } from "@/context/PopupContext";
 import { GamePopups } from "@/components/popups/GamePopups";
 import { lazy, Suspense, useState, useEffect, Component, ErrorInfo } from "react";
 import { setPopupContextRef } from "@/utils/popupUtils";
+import MusicPlayer from "@/components/ui/MusicPlayer";
 
 // Eager load the main page for better initial load
 import Index from "./pages/Index";
@@ -188,6 +189,40 @@ const PopupInitializer = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Responsive music player that adapts to device size
+const ResponsiveMusicPlayer = () => {
+  const [minimized, setMinimized] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Check for mobile devices and adjust position accordingly
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    // Check initially
+    checkMobile();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
+  
+  return (
+    <div className={`fixed ${isMobile ? 'bottom-16 right-4' : 'bottom-8 right-8'} z-50`}>
+      <MusicPlayer
+        minimized={minimized}
+        onToggleMinimize={() => setMinimized(!minimized)}
+        fixedPosition={false}
+      />
+    </div>
+  );
+};
+
 const App = () => {
   // Add debugging tools to window object (development only)
   if (process.env.NODE_ENV === 'development') {
@@ -212,6 +247,7 @@ const App = () => {
                   <GamePopups />
                   <BrowserRouter>
                     <AnimatedRoutes />
+                    <ResponsiveMusicPlayer />
                   </BrowserRouter>
                 </PopupInitializer>
               </PopupProvider>
