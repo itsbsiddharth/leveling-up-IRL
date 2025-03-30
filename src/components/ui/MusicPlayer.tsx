@@ -677,16 +677,18 @@ const MusicPlayer: React.FC = () => {
               {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
             </button>
             
-            <div className="w-20 h-6 relative">
+            <div className="w-20 h-6 relative flex items-center">
               <input
                 type="range"
                 min="0"
                 max="100"
                 value={volume}
                 onChange={(e) => setVolume(parseInt(e.target.value))}
-                className="w-full h-1.5 mt-2 appearance-none bg-gray-800 rounded-full"
+                className="w-full h-1.5 appearance-none bg-gray-800 rounded-full"
                 style={{ 
                   background: `linear-gradient(to right, ${currentTrack.color} 0%, ${currentTrack.color} ${volume}%, #1f2937 ${volume}%, #1f2937 100%)`,
+                  WebkitAppearance: 'none',
+                  appearance: 'none'
                 }}
               />
               
@@ -694,9 +696,7 @@ const MusicPlayer: React.FC = () => {
               <div 
                 className="absolute w-3 h-3 rounded-full pointer-events-none"
                 style={{ 
-                  left: `calc(${volume}% - ${volume * 0.03}px)`,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
+                  left: `calc(${volume}% - 6px)`,
                   backgroundColor: currentTrack.color,
                   boxShadow: `0 0 8px ${currentTrack.color}`,
                   border: '1px solid rgba(255,255,255,0.8)'
@@ -709,5 +709,26 @@ const MusicPlayer: React.FC = () => {
     </Rnd>
   );
 };
+
+// Add this to the bottom of the file, just before the export
+// Add a style block to hide default input range thumb
+const styleEl = document.createElement('style');
+styleEl.innerHTML = `
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 0;
+    height: 0;
+    background: transparent;
+    border: 0;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 0;
+    height: 0;
+    background: transparent;
+    border: 0;
+  }
+`;
+document.head.appendChild(styleEl);
 
 export default MusicPlayer; 
