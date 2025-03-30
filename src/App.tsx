@@ -11,6 +11,9 @@ import { lazy, Suspense, useState, useEffect, Component, ErrorInfo } from "react
 import { setPopupContextRef } from "@/utils/popupUtils";
 import MusicPlayer from "@/components/ui/MusicPlayer";
 
+// Background wallpaper feature: The app uses a global background image specified in index.css
+// To change the background, place a new image in the public/images/ folder named 'background.jpg'
+
 // Eager load the main page for better initial load
 import Index from "./pages/Index";
 import Navbar from "./components/layout/Navbar";
@@ -18,6 +21,11 @@ import Navbar from "./components/layout/Navbar";
 // Add imports for debugging utilities
 import { checkLeaderboardData, addTestLeaderboardEntries } from '@/utils/testUtils';
 import { getGlobalLeaderboard } from './firebase/leaderboardService';
+
+// Background wallpaper component
+const BackgroundWallpaper = () => (
+  <div className="fixed inset-0 z-[-1] app-wallpaper" />
+);
 
 // Error boundary component to catch rendering errors
 class ErrorBoundary extends Component<
@@ -43,7 +51,7 @@ class ErrorBoundary extends Component<
         return this.props.fallback;
       }
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-black text-white">
+        <div className="min-h-screen flex flex-col items-center justify-center p-4 text-white">
           <div className="cyber-panel p-6 border border-cyber-red max-w-lg w-full">
             <h2 className="text-xl font-bold text-cyber-red mb-4">Something went wrong</h2>
             <p className="mb-4">The application encountered an error:</p>
@@ -67,7 +75,7 @@ class ErrorBoundary extends Component<
 
 // Custom loading component for better UX
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-black text-white">
+  <div className="min-h-screen flex items-center justify-center text-white">
     <div className="cyber-panel p-4 rounded-lg border border-cyber-blue animate-pulse">
       <div className="w-24 h-6 bg-cyber-blue/20 rounded-md"></div>
     </div>
@@ -76,7 +84,7 @@ const PageLoader = () => (
 
 // Basic fallback component for when the app fails to load
 const AppFallback = () => (
-  <div className="min-h-screen flex items-center justify-center bg-black text-white">
+  <div className="min-h-screen flex items-center justify-center text-white">
     <div className="cyber-panel p-6 border border-cyber-blue max-w-lg">
       <h2 className="text-xl font-bold text-cyber-blue mb-4">Loading Application...</h2>
       <p>If this message persists, please refresh the page.</p>
@@ -209,6 +217,7 @@ const App = () => {
             <GameProvider>
               <PopupProvider>
                 <PopupInitializer>
+                  <BackgroundWallpaper />
                   <Toaster />
                   <GamePopups />
                   <BrowserRouter>
