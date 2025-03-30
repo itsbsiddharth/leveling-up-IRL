@@ -189,18 +189,6 @@ const PopupInitializer = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Responsive music player that adapts to device size and can be dragged
-const ResponsiveMusicPlayer = () => {
-  const [minimized, setMinimized] = useState(true);
-  
-  return (
-    <MusicPlayer
-      minimized={minimized}
-      onToggleMinimize={() => setMinimized(!minimized)}
-    />
-  );
-};
-
 const App = () => {
   // Add debugging tools to window object (development only)
   if (process.env.NODE_ENV === 'development') {
@@ -225,7 +213,7 @@ const App = () => {
                   <GamePopups />
                   <BrowserRouter>
                     <AnimatedRoutes />
-                    <ResponsiveMusicPlayer />
+                    <MusicPlayer />
                   </BrowserRouter>
                 </PopupInitializer>
               </PopupProvider>
