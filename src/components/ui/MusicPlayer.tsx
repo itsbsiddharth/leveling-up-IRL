@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Rnd } from 'react-rnd';
+import { createPortal } from 'react-dom';
 
 // Track definitions
 const TRACKS = [
@@ -152,7 +153,7 @@ const AudioVisualizer = React.memo(({
 
 AudioVisualizer.displayName = 'AudioVisualizer';
 
-// Track Selection dropdown component
+// Enhanced Track Selection dropdown component with robust event handling
 const TrackSelector = ({
   tracks,
   currentIndex,
@@ -166,29 +167,69 @@ const TrackSelector = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownMenuRef = useRef<HTMLDivElement>(null);
   
-  // Handle clicks outside the dropdown to close it
+  // Enhanced outside click handler
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      // Only close if clicking outside both the trigger and the dropdown
+      if (
+        isOpen && 
+        dropdownRef.current && 
+        !dropdownRef.current.contains(event.target as Node) &&
+        dropdownMenuRef.current && 
+        !dropdownMenuRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
     
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside, true);
+    
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
     };
+    document.addEventListener('keydown', handleEscape);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen]); // Add isOpen to dependencies
+
+  // Handle track selection with improved event handling
+  const handleTrackSelect = useCallback((e: React.MouseEvent, idx: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Close dropdown first to prevent any UI jank
+    setIsOpen(false);
+    
+    // Select track immediately
+    onSelect(idx);
+  }, [onSelect]);
+  
+  // Toggle dropdown with improved handling
+  const toggleDropdown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsOpen(prev => !prev);
   }, []);
   
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div 
+      className="relative" 
+      ref={dropdownRef} 
+      style={{ zIndex: isOpen ? 1010 : 1000 }}
+    >
       <div 
-        className="flex items-center justify-between p-1 rounded cursor-pointer"
-        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between p-1 rounded cursor-pointer hover:bg-gray-800"
+        onClick={toggleDropdown}
         style={{
           border: `1px solid ${color}80`,
           backgroundColor: isOpen ? `${color}20` : 'transparent',
+          transition: 'all 0.2s ease',
+          position: 'relative',
         }}
       >
         <div className="flex items-center">
@@ -203,23 +244,32 @@ const TrackSelector = ({
         }
       </div>
       
-      {isOpen && (
+      {isOpen && createPortal(
         <div 
-          className="absolute top-full left-0 right-0 mt-1 z-[1000] max-h-40 overflow-y-auto"
+          ref={dropdownMenuRef}
+          className="music-track-dropdown absolute top-full left-0 right-0 mt-1 max-h-40 overflow-y-auto rounded-md custom-scrollbar"
           style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            backgroundColor: 'rgba(0, 0, 0, 0.95)',
             backdropFilter: 'blur(10px)',
             border: `1px solid ${color}80`,
             boxShadow: `0 0 15px ${color}40`,
+            animation: 'fadeIn 0.15s ease',
+            zIndex: 9999,
+            position: 'absolute',
+            width: dropdownRef.current ? dropdownRef.current.offsetWidth : 'auto',
+            left: dropdownRef.current ? dropdownRef.current.getBoundingClientRect().left : 0,
+            top: dropdownRef.current ? 
+              dropdownRef.current.getBoundingClientRect().bottom + window.scrollY + 4 : 0,
           }}
+          onClick={e => e.stopPropagation()}
         >
           {tracks.map((track, idx) => (
             <div
               key={track.id}
-              className={`p-2 cursor-pointer hover:bg-gray-800 flex items-center gap-1 ${currentIndex === idx ? 'bg-gray-900' : ''}`}
-              onClick={() => {
-                onSelect(idx);
-                setIsOpen(false);
+              className={`p-2 cursor-pointer transition-colors duration-150 hover:bg-gray-800 flex items-center gap-1 ${currentIndex === idx ? 'bg-gray-900' : ''}`}
+              onClick={(e) => handleTrackSelect(e, idx)}
+              style={{
+                borderLeft: currentIndex === idx ? `2px solid ${track.color}` : '2px solid transparent'
               }}
             >
               {currentIndex === idx && (
@@ -230,21 +280,24 @@ const TrackSelector = ({
               <span 
                 className="text-sm truncate" 
                 style={{ 
-                  color: currentIndex === idx ? track.color : 'rgba(255, 255, 255, 0.7)',
-                  fontWeight: currentIndex === idx ? 'bold' : 'normal'
+                  color: track.color,
+                  fontWeight: currentIndex === idx ? 'bold' : 'normal',
+                  textShadow: currentIndex === idx ? `0 0 5px ${track.color}` : 'none',
+                  opacity: currentIndex === idx ? 1 : 0.8
                 }}
               >
                 {track.name}
               </span>
             </div>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 };
 
-// Progress bar component with improved one-click interaction
+// Enhanced Progress bar component with smoother interactions
 const ProgressBar = ({ 
   progress, 
   duration, 
@@ -256,14 +309,50 @@ const ProgressBar = ({
   color: string, 
   onChange: (newPosition: number) => void 
 }) => {
-  // Handle direct click on progress bar
+  const progressBarRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  
+  // Handle direct click and drag on progress bar
   const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickPosition = (e.clientX - rect.left) / rect.width;
-    const newPosition = Math.max(0, Math.min(1, clickPosition)) * duration;
-    onChange(newPosition);
+    e.preventDefault();
+    if (!progressBarRef.current) return;
+    
+    const updatePosition = (clientX: number) => {
+      const rect = progressBarRef.current!.getBoundingClientRect();
+      const clickPosition = (clientX - rect.left) / rect.width;
+      const newPosition = Math.max(0, Math.min(1, clickPosition)) * duration;
+      onChange(newPosition);
+    };
+    
+    updatePosition(e.clientX);
   }, [duration, onChange]);
-
+  
+  // Add mouse drag support for smoother seeking
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!progressBarRef.current) return;
+    
+    isDraggingRef.current = true;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDraggingRef.current && progressBarRef.current) {
+        const rect = progressBarRef.current.getBoundingClientRect();
+        const clickPosition = (e.clientX - rect.left) / rect.width;
+        const newPosition = Math.max(0, Math.min(1, clickPosition)) * duration;
+        onChange(newPosition);
+      }
+    };
+    
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [duration, onChange]);
+  
   // Format time display
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -274,11 +363,13 @@ const ProgressBar = ({
   return (
     <div className="w-full space-y-1">
       <div
+        ref={progressBarRef}
         className="h-1.5 w-full rounded-full cursor-pointer bg-gray-800 relative"
         onClick={handleClick}
+        onMouseDown={handleMouseDown}
       >
         <div
-          className="h-full rounded-full relative"
+          className="h-full rounded-full relative transition-all duration-75"
           style={{ 
             width: `${duration > 0 ? (progress / duration) * 100 : 0}%`,
             background: color,
@@ -286,7 +377,7 @@ const ProgressBar = ({
           }}
         >
           <div 
-            className="absolute w-3 h-3 rounded-full -right-1.5 -translate-y-1/2 top-1/2 cursor-grab"
+            className="absolute w-3 h-3 rounded-full -right-1.5 -translate-y-1/2 top-1/2 cursor-grab transition-all duration-75"
             style={{ 
               backgroundColor: color,
               boxShadow: `0 0 8px ${color}`,
@@ -298,6 +389,107 @@ const ProgressBar = ({
       <div className="flex justify-between text-xs">
         <span style={{ color }}>{formatTime(progress)}</span>
         <span style={{ color }}>{formatTime(duration)}</span>
+      </div>
+    </div>
+  );
+};
+
+// Improved volume control with draggable functionality
+const VolumeControl = ({
+  volume,
+  isMuted,
+  onVolumeChange,
+  onMuteToggle,
+  color
+}: {
+  volume: number,
+  isMuted: boolean,
+  onVolumeChange: (volume: number) => void,
+  onMuteToggle: () => void,
+  color: string
+}) => {
+  const volumeBarRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  
+  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!volumeBarRef.current) return;
+    
+    const updateVolume = (clientX: number) => {
+      const rect = volumeBarRef.current!.getBoundingClientRect();
+      const clickPosition = (clientX - rect.left) / rect.width;
+      const newVolume = Math.round(Math.max(0, Math.min(1, clickPosition)) * 100);
+      onVolumeChange(newVolume);
+    };
+    
+    updateVolume(e.clientX);
+  }, [onVolumeChange]);
+  
+  // Add mouse drag support
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!volumeBarRef.current) return;
+    
+    isDraggingRef.current = true;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDraggingRef.current && volumeBarRef.current) {
+        const rect = volumeBarRef.current.getBoundingClientRect();
+        const clickPosition = (e.clientX - rect.left) / rect.width;
+        const newVolume = Math.round(Math.max(0, Math.min(1, clickPosition)) * 100);
+        onVolumeChange(newVolume);
+      }
+    };
+    
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [onVolumeChange]);
+  
+  return (
+    <div className="flex items-center gap-2 relative">
+      <button 
+        onClick={onMuteToggle} 
+        className="p-1 text-gray-400 hover:text-white transition-colors duration-150"
+        style={{ color: isMuted ? color : undefined }}
+      >
+        {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+      </button>
+      
+      <div 
+        ref={volumeBarRef}
+        className="w-20 h-6 relative flex items-center"
+        onClick={handleClick}
+        onMouseDown={handleMouseDown}
+      >
+        <div 
+          className="w-full h-1.5 bg-gray-800 rounded-full cursor-pointer"
+        >
+          <div
+            className="h-full rounded-full transition-all duration-75"
+            style={{ 
+              width: `${isMuted ? 0 : volume}%`,
+              background: color,
+              boxShadow: `0 0 5px ${color}`
+            }}
+          />
+        </div>
+        
+        {/* Custom volume slider dragger */}
+        <div 
+          className="absolute w-3 h-3 rounded-full pointer-events-none transition-all duration-75"
+          style={{ 
+            left: `calc(${isMuted ? 0 : volume}% - 6px)`,
+            backgroundColor: color,
+            boxShadow: `0 0 8px ${color}`,
+            border: '1px solid rgba(255,255,255,0.8)'
+          }}
+        />
       </div>
     </div>
   );
@@ -359,6 +551,9 @@ const MusicPlayer: React.FC = () => {
       sound.unload();
     }
     
+    // Reset progress immediately when changing tracks to avoid jumpy behavior
+    setProgress(0);
+    
     const track = TRACKS[currentTrackIndex];
     sound = new Howl({
       src: [track.path],
@@ -389,7 +584,7 @@ const MusicPlayer: React.FC = () => {
     }
   }, [volume, isMuted]);
   
-  // Track progress
+  // Track progress with more frequent updates
   useEffect(() => {
     if (isPlaying) {
       // Stop any existing interval
@@ -397,12 +592,12 @@ const MusicPlayer: React.FC = () => {
         window.clearInterval(progressTimerRef.current);
       }
       
-      // Start a new interval
+      // Start a new interval with more frequent updates (100ms instead of 500ms)
       progressTimerRef.current = window.setInterval(() => {
         if (sound) {
           setProgress(sound.seek());
         }
-      }, 500);
+      }, 100);
     } else if (progressTimerRef.current) {
       window.clearInterval(progressTimerRef.current);
       progressTimerRef.current = null;
@@ -444,11 +639,14 @@ const MusicPlayer: React.FC = () => {
     setIsMuted(!isMuted);
   };
   
-  // Handle progress change (seek)
+  // Handle progress change (seek) - improved for responsiveness
   const handleProgressChange = (newPosition: number) => {
     if (sound) {
-      sound.seek(newPosition);
+      // Immediately set UI progress for responsive feeling
       setProgress(newPosition);
+      
+      // Then update actual audio position
+      sound.seek(newPosition);
     }
   };
   
@@ -480,9 +678,50 @@ const MusicPlayer: React.FC = () => {
     };
   }, [position]);
   
+  // Modified Track Selection handling in MusicPlayer component
+  const handleTrackSelection = useCallback((index: number) => {
+    // Ensure we're not selecting the same track
+    if (index === currentTrackIndex) return;
+    
+    // Update track index immediately to update UI
+    setCurrentTrackIndex(index);
+    
+    // Force immediate state update and play
+    if (sound) {
+      sound.stop(); // Stop current track
+    }
+    
+    // Create a new sound instance immediately for quicker feedback
+    const track = TRACKS[index];
+    const newSound = new Howl({
+      src: [track.path],
+      html5: true,
+      volume: (isMuted ? 0 : volume) / 100,
+      autoplay: true, // Auto play the new track
+      onload: () => {
+        setDuration(newSound.duration());
+        setProgress(0);
+      },
+      onend: () => {
+        // Play next track
+        const nextIndex = (index + 1) % TRACKS.length;
+        setCurrentTrackIndex(nextIndex);
+      }
+    });
+    
+    // Replace global sound instance
+    if (sound) {
+      sound.unload();
+    }
+    sound = newSound;
+    
+    // Set playing state to true
+    setIsPlaying(true);
+  }, [currentTrackIndex, isMuted, volume]);
+  
   if (!isVisible) return null;
   
-  // Render minimized circular player
+  // Render minimized circular player - completely redesigned for better reliability
   if (isMinimized) {
     return (
       <Rnd
@@ -491,72 +730,48 @@ const MusicPlayer: React.FC = () => {
           opacity: isVisible ? 1 : 0,
           transition: 'opacity 0.3s ease'
         }}
-        size={{ width: 50, height: 50 }}
+        size={{ width: 56, height: 56 }}
         position={{ x: position.x, y: position.y }}
         onDragStop={(e, d) => {
           setPosition({ x: d.x, y: d.y });
         }}
-        minWidth={50}
-        minHeight={50}
-        maxWidth={50}
-        maxHeight={50}
+        minWidth={56}
+        minHeight={56}
+        maxWidth={56}
+        maxHeight={56}
         bounds="window"
+        disableResizing={true}
       >
         <div 
           className="w-full h-full rounded-full flex items-center justify-center cursor-pointer overflow-hidden relative"
           style={{ 
-            background: `radial-gradient(circle, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.8) 100%)`,
-            border: `2px solid ${currentTrack.color}`,
-            boxShadow: `0 0 15px ${currentTrack.color}80`,
+            background: 'rgba(0,0,0,0.85)',
+            border: `2px solid ${isPlaying ? currentTrack.color : 'rgba(100, 100, 100, 0.4)'}`,
+            boxShadow: isPlaying ? `0 0 15px ${currentTrack.color}80` : 'none',
+            transition: 'all 0.3s ease'
           }}
           onClick={toggleMinimized}
         >
-          {/* Scanline effect */}
-          <div className="absolute inset-0 pointer-events-none opacity-30">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div 
-                key={i}
-                className="absolute w-full h-[1px] bg-white opacity-50"
-                style={{ top: `${(i + 1) * 20}%` }}
-              />
-            ))}
-          </div>
-
-          {/* Pulsating circle */}
-          <div 
-            className={`absolute inset-0 rounded-full ${isPlaying ? 'animate-pulse' : ''}`}
+          {/* Music icon in center */}
+          <Music 
+            size={28} 
             style={{ 
-              border: `1px solid ${currentTrack.color}80`,
-              boxShadow: `inset 0 0 10px ${currentTrack.color}50`
-            }}
+              color: isPlaying ? currentTrack.color : 'rgba(180, 180, 180, 0.7)',
+              filter: isPlaying ? `drop-shadow(0 0 4px ${currentTrack.color})` : 'none',
+              transition: 'all 0.3s ease'
+            }} 
           />
           
-          {/* Play/Pause icon */}
-          <div 
-            className="absolute inset-0 flex items-center justify-center"
-            onClick={(e) => {
-              e.stopPropagation();
-              togglePlayPause();
-            }}
-          >
-            {isPlaying ? (
-              <Pause size={18} style={{ color: currentTrack.color }} />
-            ) : (
-              <Play size={18} style={{ color: currentTrack.color }} />
-            )}
-          </div>
-          
-          {/* Rotating border effect */}
-          <div 
-            className={`absolute inset-[-2px] rounded-full ${isPlaying ? 'animate-spin' : ''}`}
-            style={{ 
-              borderTop: `1px solid ${currentTrack.color}`,
-              borderRight: `1px solid transparent`,
-              borderBottom: `1px solid ${currentTrack.color}`,
-              borderLeft: `1px solid transparent`,
-              animationDuration: '10s',
-            }}
-          />
+          {/* Subtle ring animation when playing */}
+          {isPlaying && (
+            <div 
+              className="absolute inset-0 animate-pulse rounded-full"
+              style={{ 
+                border: `1px solid ${currentTrack.color}50`,
+                boxShadow: `inset 0 0 10px ${currentTrack.color}30`,
+              }}
+            />
+          )}
         </div>
       </Rnd>
     );
@@ -606,7 +821,7 @@ const MusicPlayer: React.FC = () => {
               <TrackSelector
                 tracks={TRACKS}
                 currentIndex={currentTrackIndex}
-                onSelect={setCurrentTrackIndex}
+                onSelect={handleTrackSelection}
                 color={currentTrack.color}
               />
             </div>
@@ -643,14 +858,14 @@ const MusicPlayer: React.FC = () => {
           <div className="flex items-center gap-2">
             <button 
               onClick={handlePrevious} 
-              className="p-1 text-gray-400 hover:text-white"
+              className="p-1 text-gray-400 hover:text-white transition-colors duration-150"
             >
               <SkipBack size={18} />
             </button>
             
             <button 
               onClick={togglePlayPause} 
-              className="p-1.5 rounded-full" 
+              className="p-1.5 rounded-full transition-all duration-150" 
               style={{ 
                 color: currentTrack.color,
                 border: `1px solid ${currentTrack.color}80`,
@@ -662,56 +877,26 @@ const MusicPlayer: React.FC = () => {
             
             <button 
               onClick={handleNext} 
-              className="p-1 text-gray-400 hover:text-white"
+              className="p-1 text-gray-400 hover:text-white transition-colors duration-150"
             >
               <SkipForward size={18} />
             </button>
           </div>
           
-          <div className="flex items-center gap-2 relative">
-            <button 
-              onClick={toggleMute} 
-              className="p-1 text-gray-400 hover:text-white"
-              style={{ color: isMuted ? currentTrack.color : undefined }}
-            >
-              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-            </button>
-            
-            <div className="w-20 h-6 relative flex items-center">
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={volume}
-                onChange={(e) => setVolume(parseInt(e.target.value))}
-                className="w-full h-1.5 appearance-none bg-gray-800 rounded-full"
-                style={{ 
-                  background: `linear-gradient(to right, ${currentTrack.color} 0%, ${currentTrack.color} ${volume}%, #1f2937 ${volume}%, #1f2937 100%)`,
-                  WebkitAppearance: 'none',
-                  appearance: 'none'
-                }}
-              />
-              
-              {/* Custom volume slider dragger */}
-              <div 
-                className="absolute w-3 h-3 rounded-full pointer-events-none"
-                style={{ 
-                  left: `calc(${volume}% - 6px)`,
-                  backgroundColor: currentTrack.color,
-                  boxShadow: `0 0 8px ${currentTrack.color}`,
-                  border: '1px solid rgba(255,255,255,0.8)'
-                }}
-              />
-            </div>
-          </div>
+          <VolumeControl
+            volume={volume}
+            isMuted={isMuted}
+            onVolumeChange={setVolume}
+            onMuteToggle={toggleMute}
+            color={currentTrack.color}
+          />
         </div>
       </div>
     </Rnd>
   );
 };
 
-// Add this to the bottom of the file, just before the export
-// Add a style block to hide default input range thumb
+// Update the styleEl with themed scrollbar styles
 const styleEl = document.createElement('style');
 styleEl.innerHTML = `
   input[type=range]::-webkit-slider-thumb {
@@ -727,6 +912,40 @@ styleEl.innerHTML = `
     height: 0;
     background: transparent;
     border: 0;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* Force the dropdown to be visible and in front */
+  .music-track-dropdown {
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 9999 !important;
+    pointer-events: auto !important;
+  }
+  
+  /* Custom scrollbar styling for cyberpunk theme */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(to bottom, #7122e0, #05d9e8);
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to bottom, #8a44f2, #25e9f7);
+    box-shadow: 0 0 8px rgba(5, 217, 232, 0.5);
   }
 `;
 document.head.appendChild(styleEl);

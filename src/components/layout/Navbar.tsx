@@ -156,7 +156,6 @@ const Navbar = memo(() => {
     <div className="fixed bottom-0 left-0 right-0 z-50 p-4 flex justify-center items-center">
       <div 
         ref={navbarRef}
-        id="navbar-container"
         className="cyber-panel p-2 px-4 rounded-full flex justify-between w-full max-w-md mx-auto relative bg-black border border-gray-800"
         style={{ touchAction: 'manipulation' }} // Improve touch handling
       >
