@@ -3,7 +3,8 @@ import { Howl } from 'howler';
 import { 
   Play, Pause, SkipForward, SkipBack, 
   Volume2, VolumeX, Maximize2, Minimize2, 
-  GripHorizontal, Music 
+  GripHorizontal, Music, ChevronDown, ChevronUp,
+  List
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Rnd } from 'react-rnd';
@@ -150,6 +151,83 @@ const AudioVisualizer = React.memo(({
 });
 
 AudioVisualizer.displayName = 'AudioVisualizer';
+
+// Track Selection dropdown component
+const TrackSelector = ({
+  tracks,
+  currentIndex,
+  onSelect,
+  color
+}: {
+  tracks: typeof TRACKS,
+  currentIndex: number,
+  onSelect: (index: number) => void,
+  color: string
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  return (
+    <div className="relative">
+      <div 
+        className="flex items-center justify-between p-1 rounded cursor-pointer"
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          border: `1px solid ${color}80`,
+          backgroundColor: isOpen ? `${color}20` : 'transparent',
+        }}
+      >
+        <div className="flex items-center">
+          <List size={14} className="mr-1" style={{ color }} />
+          <span className="text-sm font-bold truncate" style={{ color }}>
+            {tracks[currentIndex].name}
+          </span>
+        </div>
+        {isOpen ? 
+          <ChevronUp size={14} style={{ color }} /> : 
+          <ChevronDown size={14} style={{ color }} />
+        }
+      </div>
+      
+      {isOpen && (
+        <div 
+          className="absolute top-full left-0 right-0 mt-1 z-50 max-h-40 overflow-y-auto"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            backdropFilter: 'blur(10px)',
+            border: `1px solid ${color}80`,
+            boxShadow: `0 0 15px ${color}40`,
+          }}
+        >
+          {tracks.map((track, idx) => (
+            <div
+              key={track.id}
+              className={`p-2 cursor-pointer hover:bg-gray-800 flex items-center gap-1 ${currentIndex === idx ? 'bg-gray-900' : ''}`}
+              onClick={() => {
+                onSelect(idx);
+                setIsOpen(false);
+              }}
+            >
+              {currentIndex === idx && (
+                <span className="text-xs mr-1" style={{ color: track.color }}>
+                  ▶
+                </span>
+              )}
+              <span 
+                className="text-sm truncate" 
+                style={{ 
+                  color: currentIndex === idx ? track.color : 'rgba(255, 255, 255, 0.7)',
+                  fontWeight: currentIndex === idx ? 'bold' : 'normal'
+                }}
+              >
+                {track.name}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Progress bar component with improved one-click interaction
 const ProgressBar = ({ 
@@ -388,6 +466,87 @@ const MusicPlayer: React.FC = () => {
   
   if (!isVisible) return null;
   
+  // Render minimized circular player
+  if (isMinimized) {
+    return (
+      <Rnd
+        style={{
+          zIndex: 999,
+          opacity: isVisible ? 1 : 0,
+          transition: 'opacity 0.3s ease'
+        }}
+        size={{ width: 50, height: 50 }}
+        position={{ x: position.x, y: position.y }}
+        onDragStop={(e, d) => {
+          setPosition({ x: d.x, y: d.y });
+        }}
+        minWidth={50}
+        minHeight={50}
+        maxWidth={50}
+        maxHeight={50}
+        bounds="window"
+      >
+        <div 
+          className="w-full h-full rounded-full flex items-center justify-center cursor-pointer overflow-hidden relative"
+          style={{ 
+            background: `radial-gradient(circle, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.8) 100%)`,
+            border: `2px solid ${currentTrack.color}`,
+            boxShadow: `0 0 15px ${currentTrack.color}80`,
+          }}
+          onClick={toggleMinimized}
+        >
+          {/* Scanline effect */}
+          <div className="absolute inset-0 pointer-events-none opacity-30">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div 
+                key={i}
+                className="absolute w-full h-[1px] bg-white opacity-50"
+                style={{ top: `${(i + 1) * 20}%` }}
+              />
+            ))}
+          </div>
+
+          {/* Pulsating circle */}
+          <div 
+            className={`absolute inset-0 rounded-full ${isPlaying ? 'animate-pulse' : ''}`}
+            style={{ 
+              border: `1px solid ${currentTrack.color}80`,
+              boxShadow: `inset 0 0 10px ${currentTrack.color}50`
+            }}
+          />
+          
+          {/* Play/Pause icon */}
+          <div 
+            className="absolute inset-0 flex items-center justify-center"
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePlayPause();
+            }}
+          >
+            {isPlaying ? (
+              <Pause size={18} style={{ color: currentTrack.color }} />
+            ) : (
+              <Play size={18} style={{ color: currentTrack.color }} />
+            )}
+          </div>
+          
+          {/* Rotating border effect */}
+          <div 
+            className={`absolute inset-[-2px] rounded-full ${isPlaying ? 'animate-spin' : ''}`}
+            style={{ 
+              borderTop: `1px solid ${currentTrack.color}`,
+              borderRight: `1px solid transparent`,
+              borderBottom: `1px solid ${currentTrack.color}`,
+              borderLeft: `1px solid transparent`,
+              animationDuration: '10s',
+            }}
+          />
+        </div>
+      </Rnd>
+    );
+  }
+  
+  // Render full player
   return (
     <Rnd
       style={{
@@ -423,44 +582,45 @@ const MusicPlayer: React.FC = () => {
           boxShadow: `0 0 15px ${currentTrack.color}40`,
         }}
       >
-        {/* Header with drag handle */}
+        {/* Header with drag handle and track selector */}
         <div className="flex items-center justify-between mb-2 drag-handle cursor-move">
-          <div className="flex items-center gap-2">
-            <GripHorizontal size={16} className="text-gray-400" />
-            <span className="text-sm font-bold truncate" style={{ color: currentTrack.color }}>
-              {currentTrack.name}
-            </span>
+          <div className="flex items-center gap-2 flex-grow">
+            <GripHorizontal size={16} className="text-gray-400 flex-shrink-0" />
+            <div className="flex-grow overflow-hidden">
+              <TrackSelector
+                tracks={TRACKS}
+                currentIndex={currentTrackIndex}
+                onSelect={setCurrentTrackIndex}
+                color={currentTrack.color}
+              />
+            </div>
           </div>
           <button 
             onClick={toggleMinimized} 
-            className="p-1 text-gray-400 hover:text-white"
+            className="p-1 text-gray-400 hover:text-white flex-shrink-0 ml-1"
           >
-            {isMinimized ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
+            <Minimize2 size={16} />
           </button>
         </div>
         
-        {!isMinimized && (
-          <>
-            {/* Visualizer */}
-            <div className="mb-2">
-              <AudioVisualizer 
-                isPlaying={isPlaying} 
-                volume={isMuted ? 0 : volume} 
-                color={currentTrack.color}
-              />
-            </div>
-            
-            {/* Progress bar */}
-            <div className="mb-2">
-              <ProgressBar 
-                progress={progress} 
-                duration={duration} 
-                color={currentTrack.color}
-                onChange={handleProgressChange}
-              />
-            </div>
-          </>
-        )}
+        {/* Visualizer */}
+        <div className="mb-2">
+          <AudioVisualizer 
+            isPlaying={isPlaying} 
+            volume={isMuted ? 0 : volume} 
+            color={currentTrack.color}
+          />
+        </div>
+        
+        {/* Progress bar */}
+        <div className="mb-2">
+          <ProgressBar 
+            progress={progress} 
+            duration={duration} 
+            color={currentTrack.color}
+            onChange={handleProgressChange}
+          />
+        </div>
         
         {/* Controls */}
         <div className="flex items-center justify-between">
@@ -501,19 +661,17 @@ const MusicPlayer: React.FC = () => {
               {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
             </button>
             
-            {!isMinimized && (
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={volume}
-                onChange={(e) => setVolume(parseInt(e.target.value))}
-                className="w-20 h-1.5 appearance-none bg-gray-800 rounded-full"
-                style={{ 
-                  background: `linear-gradient(to right, ${currentTrack.color} 0%, ${currentTrack.color} ${volume}%, #1f2937 ${volume}%, #1f2937 100%)`,
-                }}
-              />
-            )}
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={volume}
+              onChange={(e) => setVolume(parseInt(e.target.value))}
+              className="w-20 h-1.5 appearance-none bg-gray-800 rounded-full"
+              style={{ 
+                background: `linear-gradient(to right, ${currentTrack.color} 0%, ${currentTrack.color} ${volume}%, #1f2937 ${volume}%, #1f2937 100%)`,
+              }}
+            />
           </div>
         </div>
       </div>
