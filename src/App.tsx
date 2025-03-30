@@ -6,12 +6,10 @@ import { AnimatePresence } from "framer-motion";
 import { GameProvider } from "@/context/GameContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { PopupProvider, usePopup } from "@/context/PopupContext";
-import { MusicProvider } from "@/context/MusicContext";
 import { GamePopups } from "@/components/popups/GamePopups";
 import { lazy, Suspense, useState, useEffect, Component, ErrorInfo } from "react";
 import { setPopupContextRef } from "@/utils/popupUtils";
 import MusicPlayer from "@/components/ui/MusicPlayer";
-import MusicPlayerDebug from "@/components/ui/MusicPlayerDebug";
 
 // Eager load the main page for better initial load
 import Index from "./pages/Index";
@@ -191,6 +189,18 @@ const PopupInitializer = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Responsive music player that adapts to device size and can be dragged
+const ResponsiveMusicPlayer = () => {
+  const [minimized, setMinimized] = useState(true);
+  
+  return (
+    <MusicPlayer
+      minimized={minimized}
+      onToggleMinimize={() => setMinimized(!minimized)}
+    />
+  );
+};
+
 const App = () => {
   // Add debugging tools to window object (development only)
   if (process.env.NODE_ENV === 'development') {
@@ -210,30 +220,14 @@ const App = () => {
           <AuthProvider>
             <GameProvider>
               <PopupProvider>
-                <MusicProvider>
-                  <PopupInitializer>
-                    <Toaster />
-                    <GamePopups />
-                    {/* Render MusicPlayer outside of BrowserRouter to prevent routing-related issues */}
-                    <div 
-                      id="music-player-container" 
-                      style={{
-                        position: 'fixed',
-                        bottom: '80px',
-                        right: '20px',
-                        zIndex: 9999,
-                        width: 'auto',
-                        height: 'auto'
-                      }}
-                    >
-                      <MusicPlayer />
-                    </div>
-                    {process.env.NODE_ENV === 'development' && <MusicPlayerDebug />}
-                    <BrowserRouter>
-                      <AnimatedRoutes />
-                    </BrowserRouter>
-                  </PopupInitializer>
-                </MusicProvider>
+                <PopupInitializer>
+                  <Toaster />
+                  <GamePopups />
+                  <BrowserRouter>
+                    <AnimatedRoutes />
+                    <ResponsiveMusicPlayer />
+                  </BrowserRouter>
+                </PopupInitializer>
               </PopupProvider>
             </GameProvider>
           </AuthProvider>
