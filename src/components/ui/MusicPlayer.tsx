@@ -165,9 +165,24 @@ const TrackSelector = ({
   color: string
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Handle clicks outside the dropdown to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <div 
         className="flex items-center justify-between p-1 rounded cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}
@@ -190,7 +205,7 @@ const TrackSelector = ({
       
       {isOpen && (
         <div 
-          className="absolute top-full left-0 right-0 mt-1 z-50 max-h-40 overflow-y-auto"
+          className="absolute top-full left-0 right-0 mt-1 z-[1000] max-h-40 overflow-y-auto"
           style={{
             backgroundColor: 'rgba(0, 0, 0, 0.9)',
             backdropFilter: 'blur(10px)',
@@ -271,7 +286,7 @@ const ProgressBar = ({
           }}
         >
           <div 
-            className="absolute w-3 h-3 rounded-full -right-1.5 -top-0.75 cursor-grab"
+            className="absolute w-3 h-3 rounded-full -right-1.5 -translate-y-1/2 top-1/2 cursor-grab"
             style={{ 
               backgroundColor: color,
               boxShadow: `0 0 8px ${color}`,
@@ -303,6 +318,7 @@ const MusicPlayer: React.FC = () => {
   
   const progressTimerRef = useRef<number | null>(null);
   const currentTrack = TRACKS[currentTrackIndex];
+  const [trackSelectorOpen, setTrackSelectorOpen] = useState(false);
   
   // Initialize audio
   useEffect(() => {
@@ -652,7 +668,7 @@ const MusicPlayer: React.FC = () => {
             </button>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative">
             <button 
               onClick={toggleMute} 
               className="p-1 text-gray-400 hover:text-white"
@@ -661,17 +677,32 @@ const MusicPlayer: React.FC = () => {
               {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
             </button>
             
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={volume}
-              onChange={(e) => setVolume(parseInt(e.target.value))}
-              className="w-20 h-1.5 appearance-none bg-gray-800 rounded-full"
-              style={{ 
-                background: `linear-gradient(to right, ${currentTrack.color} 0%, ${currentTrack.color} ${volume}%, #1f2937 ${volume}%, #1f2937 100%)`,
-              }}
-            />
+            <div className="w-20 h-6 relative">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={volume}
+                onChange={(e) => setVolume(parseInt(e.target.value))}
+                className="w-full h-1.5 mt-2 appearance-none bg-gray-800 rounded-full"
+                style={{ 
+                  background: `linear-gradient(to right, ${currentTrack.color} 0%, ${currentTrack.color} ${volume}%, #1f2937 ${volume}%, #1f2937 100%)`,
+                }}
+              />
+              
+              {/* Custom volume slider dragger */}
+              <div 
+                className="absolute w-3 h-3 rounded-full pointer-events-none"
+                style={{ 
+                  left: `calc(${volume}% - ${volume * 0.03}px)`,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  backgroundColor: currentTrack.color,
+                  boxShadow: `0 0 8px ${currentTrack.color}`,
+                  border: '1px solid rgba(255,255,255,0.8)'
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
