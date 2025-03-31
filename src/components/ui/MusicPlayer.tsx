@@ -14,6 +14,9 @@ import { createPortal } from 'react-dom';
 declare global {
   interface Window {
     lastMusicPlayerDragTime?: number;
+    musicPlayerTouchStartTime?: number;
+    musicPlayerTouchStartX?: number;
+    musicPlayerTouchStartY?: number;
   }
 }
 
@@ -783,6 +786,7 @@ const MusicPlayer: React.FC = () => {
   if (isMinimized) {
     return (
       <Rnd
+        className="rnd-player"
         style={{
           zIndex: 999,
           opacity: isVisible ? 1 : 0,
@@ -791,36 +795,7 @@ const MusicPlayer: React.FC = () => {
         size={{ width: 56, height: 56 }}
         position={{ x: position.x, y: position.y }}
         onDragStop={(e, d) => {
-          // Track if we've actually moved the player
-          const isDragged = Math.abs(d.x - position.x) > 3 || Math.abs(d.y - position.y) > 3;
-          
-          // Update position
           setPosition({ x: d.x, y: d.y });
-          
-          // If we've dragged, block the click event
-          if (isDragged) {
-            // Create a timestamp to track when drag ended
-            window.lastMusicPlayerDragTime = Date.now();
-            
-            // Create a blocking div to prevent click events
-            const blocker = document.createElement('div');
-            blocker.style.position = 'fixed';
-            blocker.style.top = '0';
-            blocker.style.left = '0';
-            blocker.style.right = '0';
-            blocker.style.bottom = '0';
-            blocker.style.zIndex = '9999';
-            blocker.style.cursor = 'default';
-            
-            document.body.appendChild(blocker);
-            
-            // Remove the blocker after a short delay
-            setTimeout(() => {
-              if (document.body.contains(blocker)) {
-                document.body.removeChild(blocker);
-              }
-            }, 300);
-          }
         }}
         minWidth={56}
         minHeight={56}
@@ -838,7 +813,7 @@ const MusicPlayer: React.FC = () => {
             transition: 'all 0.3s ease'
           }}
         >
-          {/* Improved touchable button with better click handling */}
+          {/* Improved touchable button with separate touch and click handling */}
           <button 
             onClick={(e) => {
               // Check if this click is too soon after a drag operation
@@ -846,12 +821,47 @@ const MusicPlayer: React.FC = () => {
               if (timeSinceDrag < 300) {
                 return; // Ignore clicks that happen right after dragging
               }
-              // Toggle minimized state
+              // Toggle minimized state for mouse events
               toggleMinimized();
+            }}
+            onTouchStart={(e) => {
+              // Store touch start time and position for checking if this was a tap or drag
+              window.musicPlayerTouchStartTime = Date.now();
+              window.musicPlayerTouchStartX = e.touches[0].clientX;
+              window.musicPlayerTouchStartY = e.touches[0].clientY;
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault(); // Prevent default to ensure no double firing on mobile
+              
+              // Only expand if this was a tap (short touch without much movement)
+              const touchDuration = Date.now() - (window.musicPlayerTouchStartTime || 0);
+              const touchDistance = Math.hypot(
+                (e.changedTouches[0].clientX - (window.musicPlayerTouchStartX || 0)), 
+                (e.changedTouches[0].clientY - (window.musicPlayerTouchStartY || 0))
+              );
+              
+              // Check if this was a genuine tap rather than a drag
+              const isGenuineTap = touchDuration < 250 && touchDistance < 10;
+              
+              // Also check if we're not too close to the end of a drag operation
+              const timeSinceDrag = Date.now() - (window.lastMusicPlayerDragTime || 0);
+              
+              if (isGenuineTap && timeSinceDrag > 300) {
+                // This was a genuine tap, expand the player
+                toggleMinimized();
+                
+                // Add active feedback effect
+                const target = e.currentTarget;
+                target.classList.add('scale-95');
+                setTimeout(() => target.classList.remove('scale-95'), 150);
+              }
             }}
             className="absolute inset-0 w-full h-full flex items-center justify-center cursor-pointer active:scale-95 transition-transform duration-75"
             aria-label={isMinimized ? "Expand player" : "Minimize player"}
-            style={{ touchAction: 'manipulation' }}
+            style={{ 
+              touchAction: 'none', // Prevent scrolling or zooming while interacting
+              WebkitTapHighlightColor: 'transparent' // Remove tap highlight on iOS
+            }}
           >
             <Music 
               size={28} 
@@ -881,6 +891,7 @@ const MusicPlayer: React.FC = () => {
   // Render full player
   return (
     <Rnd
+      className="rnd-player"
       style={{
         zIndex: 999,
         opacity: isVisible ? 1 : 0,
@@ -932,6 +943,11 @@ const MusicPlayer: React.FC = () => {
             onTouchEnd={(e) => {
               e.preventDefault();
               toggleMinimized();
+              
+              // Add active feedback
+              const target = e.currentTarget;
+              target.classList.add('scale-95');
+              setTimeout(() => target.classList.remove('scale-95'), 150);
             }}
             className="p-3 text-gray-400 hover:text-white flex-shrink-0 ml-1 rounded-md active:scale-95 transition-transform duration-75 touch-manipulation"
             style={{ touchAction: 'manipulation' }}
@@ -968,6 +984,11 @@ const MusicPlayer: React.FC = () => {
               onTouchEnd={(e) => {
                 e.preventDefault();
                 handlePrevious();
+                
+                // Add active feedback
+                const target = e.currentTarget;
+                target.classList.add('scale-95');
+                setTimeout(() => target.classList.remove('scale-95'), 150);
               }}
               className="p-2 text-gray-400 hover:text-white transition-colors duration-150 active:scale-95 touch-manipulation"
               style={{ touchAction: 'manipulation' }}
@@ -981,6 +1002,11 @@ const MusicPlayer: React.FC = () => {
               onTouchEnd={(e) => {
                 e.preventDefault();
                 togglePlayPause();
+                
+                // Add active feedback
+                const target = e.currentTarget;
+                target.classList.add('scale-95');
+                setTimeout(() => target.classList.remove('scale-95'), 150);
               }}
               className="p-2.5 rounded-full transition-all duration-150 active:scale-95 touch-manipulation" 
               style={{ 
@@ -999,6 +1025,11 @@ const MusicPlayer: React.FC = () => {
               onTouchEnd={(e) => {
                 e.preventDefault();
                 handleNext();
+                
+                // Add active feedback
+                const target = e.currentTarget;
+                target.classList.add('scale-95');
+                setTimeout(() => target.classList.remove('scale-95'), 150);
               }}
               className="p-2 text-gray-400 hover:text-white transition-colors duration-150 active:scale-95 touch-manipulation"
               style={{ touchAction: 'manipulation' }}
@@ -1087,6 +1118,7 @@ touchStyleEl.innerHTML = `
     /* Make all interactive elements larger on touch devices */
     button, .music-track-dropdown button {
       min-height: 44px;
+      min-width: 44px; /* Ensure buttons have adequate touch target size */
     }
     
     /* Increase hit areas */
@@ -1109,6 +1141,35 @@ touchStyleEl.innerHTML = `
     /* Fix for iOS Safari, which has issues with position:fixed and transform */
     .music-track-dropdown button {
       padding: 12px 16px;
+    }
+    
+    /* Add force GPU acceleration for smoother animations */
+    .rnd-player {
+      -webkit-transform: translateZ(0);
+      -moz-transform: translateZ(0);
+      -ms-transform: translateZ(0);
+      -o-transform: translateZ(0);
+      transform: translateZ(0);
+      -webkit-backface-visibility: hidden;
+      -moz-backface-visibility: hidden;
+      -ms-backface-visibility: hidden;
+      backface-visibility: hidden;
+      -webkit-perspective: 1000;
+      -moz-perspective: 1000;
+      -ms-perspective: 1000;
+      perspective: 1000;
+    }
+    
+    /* Fix for content-blocking elements */
+    .blocker {
+      background-color: transparent !important;
+      pointer-events: none !important;
+    }
+    
+    /* Ensure touch targets don't have default behaviors */
+    * {
+      -webkit-tap-highlight-color: rgba(0,0,0,0);
+      -webkit-touch-callout: none;
     }
   }
 `;
