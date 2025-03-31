@@ -383,7 +383,7 @@ const Achievements = memo(() => {
       
       {/* Leaderboard Modal - Simplified to only show global leaderboard */}
       {showLeaderboard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
           <div className="w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col cyber-panel border border-cyber-blue rounded-lg p-4">
             {/* Modal Header */}
             <div className="mb-6">

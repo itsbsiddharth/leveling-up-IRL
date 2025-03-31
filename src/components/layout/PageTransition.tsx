@@ -36,10 +36,12 @@ const PageTransition = memo(({ children }: PageTransitionProps) => {
           exit="out"
           variants={pageVariants}
           transition={pageTransition}
-          className="w-full min-h-screen bg-black"
+          className="w-full min-h-screen"
           // Enhanced hardware acceleration and browser optimizations
           style={{ 
-            willChange: 'opacity'
+            willChange: 'opacity',
+            backgroundColor: 'rgba(0, 0, 0, 0.4)', // Lighter background
+            backdropFilter: 'blur(2px)', // Reduced blur effect
           }}
         >
           {children}
@@ -50,7 +52,13 @@ const PageTransition = memo(({ children }: PageTransitionProps) => {
     console.error("PageTransition error:", error);
     // Fallback rendering without animations if there's an error
     return (
-      <div className="w-full min-h-screen bg-black">
+      <div 
+        className="w-full min-h-screen"
+        style={{
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          backdropFilter: 'blur(2px)'
+        }}
+      >
         {children}
       </div>
     );

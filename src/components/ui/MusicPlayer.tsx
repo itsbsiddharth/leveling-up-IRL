@@ -10,6 +10,13 @@ import { cn } from '@/lib/utils';
 import { Rnd } from 'react-rnd';
 import { createPortal } from 'react-dom';
 
+// Add this type declaration near the top of the file, after imports
+declare global {
+  interface Window {
+    lastMusicPlayerDragTime?: number;
+  }
+}
+
 // Track definitions
 const TRACKS = [
   { 
@@ -733,7 +740,36 @@ const MusicPlayer: React.FC = () => {
         size={{ width: 56, height: 56 }}
         position={{ x: position.x, y: position.y }}
         onDragStop={(e, d) => {
+          // Track if we've actually moved the player
+          const isDragged = Math.abs(d.x - position.x) > 3 || Math.abs(d.y - position.y) > 3;
+          
+          // Update position
           setPosition({ x: d.x, y: d.y });
+          
+          // If we've dragged, block the click event
+          if (isDragged) {
+            // Create a timestamp to track when drag ended
+            window.lastMusicPlayerDragTime = Date.now();
+            
+            // Create a blocking div to prevent click events
+            const blocker = document.createElement('div');
+            blocker.style.position = 'fixed';
+            blocker.style.top = '0';
+            blocker.style.left = '0';
+            blocker.style.right = '0';
+            blocker.style.bottom = '0';
+            blocker.style.zIndex = '9999';
+            blocker.style.cursor = 'default';
+            
+            document.body.appendChild(blocker);
+            
+            // Remove the blocker after a short delay
+            setTimeout(() => {
+              if (document.body.contains(blocker)) {
+                document.body.removeChild(blocker);
+              }
+            }, 300);
+          }
         }}
         minWidth={56}
         minHeight={56}
@@ -743,29 +779,43 @@ const MusicPlayer: React.FC = () => {
         disableResizing={true}
       >
         <div 
-          className="w-full h-full rounded-full flex items-center justify-center cursor-pointer overflow-hidden relative"
+          className="w-full h-full rounded-full flex items-center justify-center overflow-hidden relative"
           style={{ 
             background: 'rgba(0,0,0,0.85)',
             border: `2px solid ${isPlaying ? currentTrack.color : 'rgba(100, 100, 100, 0.4)'}`,
             boxShadow: isPlaying ? `0 0 15px ${currentTrack.color}80` : 'none',
             transition: 'all 0.3s ease'
           }}
-          onClick={toggleMinimized}
         >
-          {/* Music icon in center */}
-          <Music 
-            size={28} 
-            style={{ 
-              color: isPlaying ? currentTrack.color : 'rgba(180, 180, 180, 0.7)',
-              filter: isPlaying ? `drop-shadow(0 0 4px ${currentTrack.color})` : 'none',
-              transition: 'all 0.3s ease'
-            }} 
-          />
+          {/* Improved touchable button with better click handling */}
+          <button 
+            onClick={(e) => {
+              // Check if this click is too soon after a drag operation
+              const timeSinceDrag = Date.now() - (window.lastMusicPlayerDragTime || 0);
+              if (timeSinceDrag < 300) {
+                return; // Ignore clicks that happen right after dragging
+              }
+              // Toggle minimized state
+              toggleMinimized();
+            }}
+            className="absolute inset-0 w-full h-full flex items-center justify-center cursor-pointer active:scale-95 transition-transform duration-75"
+            aria-label={isMinimized ? "Expand player" : "Minimize player"}
+            style={{ touchAction: 'manipulation' }}
+          >
+            <Music 
+              size={28} 
+              style={{ 
+                color: isPlaying ? currentTrack.color : 'rgba(180, 180, 180, 0.7)',
+                filter: isPlaying ? `drop-shadow(0 0 4px ${currentTrack.color})` : 'none',
+                transition: 'all 0.3s ease'
+              }} 
+            />
+          </button>
           
           {/* Subtle ring animation when playing */}
           {isPlaying && (
             <div 
-              className="absolute inset-0 animate-pulse rounded-full"
+              className="absolute inset-0 animate-pulse rounded-full pointer-events-none"
               style={{ 
                 border: `1px solid ${currentTrack.color}50`,
                 boxShadow: `inset 0 0 10px ${currentTrack.color}30`,
@@ -827,10 +877,11 @@ const MusicPlayer: React.FC = () => {
             </div>
           </div>
           <button 
-            onClick={toggleMinimized} 
-            className="p-1 text-gray-400 hover:text-white flex-shrink-0 ml-1"
+            onClick={toggleMinimized}
+            className="p-2 text-gray-400 hover:text-white flex-shrink-0 ml-1 rounded-md active:scale-95 transition-transform duration-75"
+            style={{ touchAction: 'manipulation' }}
           >
-            <Minimize2 size={16} />
+            <Minimize2 size={18} />
           </button>
         </div>
         

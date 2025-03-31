@@ -10,9 +10,7 @@ import { GamePopups } from "@/components/popups/GamePopups";
 import { lazy, Suspense, useState, useEffect, Component, ErrorInfo } from "react";
 import { setPopupContextRef } from "@/utils/popupUtils";
 import MusicPlayer from "@/components/ui/MusicPlayer";
-
-// Background wallpaper feature: The app uses a global background image specified in index.css
-// To change the background, place a new image in the public/images/ folder named 'background.jpg'
+import Background from "@/components/layout/Background";
 
 // Eager load the main page for better initial load
 import Index from "./pages/Index";
@@ -21,11 +19,6 @@ import Navbar from "./components/layout/Navbar";
 // Add imports for debugging utilities
 import { checkLeaderboardData, addTestLeaderboardEntries } from '@/utils/testUtils';
 import { getGlobalLeaderboard } from './firebase/leaderboardService';
-
-// Background wallpaper component
-const BackgroundWallpaper = () => (
-  <div className="fixed inset-0 z-[-1] app-wallpaper" />
-);
 
 // Error boundary component to catch rendering errors
 class ErrorBoundary extends Component<
@@ -217,9 +210,9 @@ const App = () => {
             <GameProvider>
               <PopupProvider>
                 <PopupInitializer>
-                  <BackgroundWallpaper />
                   <Toaster />
                   <GamePopups />
+                  <Background />
                   <BrowserRouter>
                     <AnimatedRoutes />
                     <MusicPlayer />
