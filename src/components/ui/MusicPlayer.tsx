@@ -176,10 +176,10 @@ const TrackSelector = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const dropdownMenuRef = useRef<HTMLDivElement>(null);
   
-  // Enhanced outside click handler
+  // Enhanced outside click handler with touch support
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      // Only close if clicking outside both the trigger and the dropdown
+    const handleOutsideInteraction = (event: MouseEvent | TouchEvent) => {
+      // Only close if interacting outside both the trigger and the dropdown
       if (
         isOpen && 
         dropdownRef.current && 
@@ -191,7 +191,9 @@ const TrackSelector = ({
       }
     };
     
-    document.addEventListener('mousedown', handleClickOutside, true);
+    // Add both mouse and touch listeners for better cross-device support
+    document.addEventListener('mousedown', handleOutsideInteraction, true);
+    document.addEventListener('touchstart', handleOutsideInteraction, true);
     
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setIsOpen(false);
@@ -199,13 +201,14 @@ const TrackSelector = ({
     document.addEventListener('keydown', handleEscape);
     
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('mousedown', handleOutsideInteraction, true);
+      document.removeEventListener('touchstart', handleOutsideInteraction, true);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isOpen]); // Add isOpen to dependencies
+  }, [isOpen]);
 
-  // Handle track selection with improved event handling
-  const handleTrackSelect = useCallback((e: React.MouseEvent, idx: number) => {
+  // Handle track selection with improved event handling for both mouse and touch
+  const handleTrackSelect = useCallback((e: React.MouseEvent | React.TouchEvent, idx: number) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -216,8 +219,8 @@ const TrackSelector = ({
     onSelect(idx);
   }, [onSelect]);
   
-  // Toggle dropdown with improved handling
-  const toggleDropdown = useCallback((e: React.MouseEvent) => {
+  // Toggle dropdown with improved handling for both mouse and touch
+  const toggleDropdown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsOpen(prev => !prev);
@@ -229,14 +232,20 @@ const TrackSelector = ({
       ref={dropdownRef} 
       style={{ zIndex: isOpen ? 1010 : 1000 }}
     >
-      <div 
-        className="flex items-center justify-between p-1 rounded cursor-pointer hover:bg-gray-800"
+      <button 
+        className="w-full flex items-center justify-between p-2 rounded cursor-pointer hover:bg-gray-800 focus:outline-none focus:ring-2 touch-manipulation"
         onClick={toggleDropdown}
+        onTouchEnd={(e) => {
+          // Prevent default behavior to avoid double-triggering
+          e.preventDefault();
+          toggleDropdown(e);
+        }}
         style={{
           border: `1px solid ${color}80`,
           backgroundColor: isOpen ? `${color}20` : 'transparent',
           transition: 'all 0.2s ease',
           position: 'relative',
+          touchAction: 'manipulation',
         }}
       >
         <div className="flex items-center">
@@ -249,12 +258,12 @@ const TrackSelector = ({
           <ChevronUp size={14} style={{ color }} /> : 
           <ChevronDown size={14} style={{ color }} />
         }
-      </div>
+      </button>
       
       {isOpen && createPortal(
         <div 
           ref={dropdownMenuRef}
-          className="music-track-dropdown absolute top-full left-0 right-0 mt-1 max-h-40 overflow-y-auto rounded-md custom-scrollbar"
+          className="music-track-dropdown absolute top-full left-0 right-0 mt-1 max-h-40 overflow-y-auto rounded-md custom-scrollbar touch-manipulation"
           style={{
             backgroundColor: 'rgba(0, 0, 0, 0.95)',
             backdropFilter: 'blur(10px)',
@@ -262,21 +271,27 @@ const TrackSelector = ({
             boxShadow: `0 0 15px ${color}40`,
             animation: 'fadeIn 0.15s ease',
             zIndex: 9999,
-            position: 'absolute',
+            position: 'fixed', // Changed from absolute for better mobile positioning
             width: dropdownRef.current ? dropdownRef.current.offsetWidth : 'auto',
             left: dropdownRef.current ? dropdownRef.current.getBoundingClientRect().left : 0,
             top: dropdownRef.current ? 
               dropdownRef.current.getBoundingClientRect().bottom + window.scrollY + 4 : 0,
           }}
           onClick={e => e.stopPropagation()}
+          onTouchEnd={e => e.stopPropagation()}
         >
           {tracks.map((track, idx) => (
-            <div
+            <button
               key={track.id}
-              className={`p-2 cursor-pointer transition-colors duration-150 hover:bg-gray-800 flex items-center gap-1 ${currentIndex === idx ? 'bg-gray-900' : ''}`}
+              className={`w-full text-left p-3 cursor-pointer transition-colors duration-150 hover:bg-gray-800 active:bg-gray-700 flex items-center gap-1 ${currentIndex === idx ? 'bg-gray-900' : ''} touch-manipulation`}
               onClick={(e) => handleTrackSelect(e, idx)}
+              onTouchEnd={(e) => {
+                e.preventDefault(); // Prevent default to avoid double-triggering
+                handleTrackSelect(e, idx);
+              }}
               style={{
-                borderLeft: currentIndex === idx ? `2px solid ${track.color}` : '2px solid transparent'
+                borderLeft: currentIndex === idx ? `2px solid ${track.color}` : '2px solid transparent',
+                touchAction: 'manipulation',
               }}
             >
               {currentIndex === idx && (
@@ -295,7 +310,7 @@ const TrackSelector = ({
               >
                 {track.name}
               </span>
-            </div>
+            </button>
           ))}
         </div>,
         document.body
@@ -304,7 +319,7 @@ const TrackSelector = ({
   );
 };
 
-// Enhanced Progress bar component with smoother interactions
+// Enhanced Progress bar component with smoother interactions and touch support
 const ProgressBar = ({ 
   progress, 
   duration, 
@@ -319,10 +334,22 @@ const ProgressBar = ({
   const progressBarRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   
+  // Create a handler that works for both touch and mouse events
+  const getClientXFromEvent = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent): number => {
+    // Touch event
+    if ('touches' in e) {
+      return e.touches[0]?.clientX || 0;
+    }
+    // Mouse event
+    return ('clientX' in e) ? e.clientX : 0;
+  };
+  
   // Handle direct click and drag on progress bar
-  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleInteractionStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     if (!progressBarRef.current) return;
+    
+    const clientX = getClientXFromEvent(e);
     
     const updatePosition = (clientX: number) => {
       const rect = progressBarRef.current!.getBoundingClientRect();
@@ -331,10 +358,31 @@ const ProgressBar = ({
       onChange(newPosition);
     };
     
-    updatePosition(e.clientX);
+    updatePosition(clientX);
+    
+    // Set dragging state for touch events
+    if ('touches' in e) {
+      isDraggingRef.current = true;
+      
+      const handleTouchMove = (e: TouchEvent) => {
+        if (isDraggingRef.current && progressBarRef.current) {
+          const clientX = getClientXFromEvent(e);
+          updatePosition(clientX);
+        }
+      };
+      
+      const handleTouchEnd = () => {
+        isDraggingRef.current = false;
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
+      };
+      
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd);
+    }
   }, [duration, onChange]);
   
-  // Add mouse drag support for smoother seeking
+  // Handle mouse drag support
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     if (!progressBarRef.current) return;
@@ -343,8 +391,9 @@ const ProgressBar = ({
     
     const handleMouseMove = (e: MouseEvent) => {
       if (isDraggingRef.current && progressBarRef.current) {
+        const clientX = getClientXFromEvent(e);
         const rect = progressBarRef.current.getBoundingClientRect();
-        const clickPosition = (e.clientX - rect.left) / rect.width;
+        const clickPosition = (clientX - rect.left) / rect.width;
         const newPosition = Math.max(0, Math.min(1, clickPosition)) * duration;
         onChange(newPosition);
       }
@@ -371,9 +420,11 @@ const ProgressBar = ({
     <div className="w-full space-y-1">
       <div
         ref={progressBarRef}
-        className="h-1.5 w-full rounded-full cursor-pointer bg-gray-800 relative"
-        onClick={handleClick}
+        className="h-2.5 w-full rounded-full cursor-pointer bg-gray-800 relative touch-manipulation"
+        onClick={handleInteractionStart}
+        onTouchStart={handleInteractionStart}
         onMouseDown={handleMouseDown}
+        style={{ touchAction: 'none' }}
       >
         <div
           className="h-full rounded-full relative transition-all duration-75"
@@ -384,7 +435,7 @@ const ProgressBar = ({
           }}
         >
           <div 
-            className="absolute w-3 h-3 rounded-full -right-1.5 -translate-y-1/2 top-1/2 cursor-grab transition-all duration-75"
+            className="absolute w-4 h-4 rounded-full -right-2 -translate-y-1/2 top-1/2 cursor-grab transition-all duration-75"
             style={{ 
               backgroundColor: color,
               boxShadow: `0 0 8px ${color}`,
@@ -878,10 +929,15 @@ const MusicPlayer: React.FC = () => {
           </div>
           <button 
             onClick={toggleMinimized}
-            className="p-2 text-gray-400 hover:text-white flex-shrink-0 ml-1 rounded-md active:scale-95 transition-transform duration-75"
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              toggleMinimized();
+            }}
+            className="p-3 text-gray-400 hover:text-white flex-shrink-0 ml-1 rounded-md active:scale-95 transition-transform duration-75 touch-manipulation"
             style={{ touchAction: 'manipulation' }}
+            aria-label="Minimize player"
           >
-            <Minimize2 size={18} />
+            <Minimize2 size={20} />
           </button>
         </div>
         
@@ -906,31 +962,49 @@ const MusicPlayer: React.FC = () => {
         
         {/* Controls */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button 
-              onClick={handlePrevious} 
-              className="p-1 text-gray-400 hover:text-white transition-colors duration-150"
+              onClick={handlePrevious}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                handlePrevious();
+              }}
+              className="p-2 text-gray-400 hover:text-white transition-colors duration-150 active:scale-95 touch-manipulation"
+              style={{ touchAction: 'manipulation' }}
+              aria-label="Previous track"
             >
-              <SkipBack size={18} />
+              <SkipBack size={20} />
             </button>
             
             <button 
-              onClick={togglePlayPause} 
-              className="p-1.5 rounded-full transition-all duration-150" 
+              onClick={togglePlayPause}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                togglePlayPause();
+              }}
+              className="p-2.5 rounded-full transition-all duration-150 active:scale-95 touch-manipulation" 
               style={{ 
                 color: currentTrack.color,
                 border: `1px solid ${currentTrack.color}80`,
-                boxShadow: isPlaying ? `0 0 10px ${currentTrack.color}80` : 'none'
+                boxShadow: isPlaying ? `0 0 10px ${currentTrack.color}80` : 'none',
+                touchAction: 'manipulation'
               }}
+              aria-label={isPlaying ? "Pause" : "Play"}
             >
-              {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+              {isPlaying ? <Pause size={20} /> : <Play size={20} />}
             </button>
             
             <button 
-              onClick={handleNext} 
-              className="p-1 text-gray-400 hover:text-white transition-colors duration-150"
+              onClick={handleNext}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                handleNext();
+              }}
+              className="p-2 text-gray-400 hover:text-white transition-colors duration-150 active:scale-95 touch-manipulation"
+              style={{ touchAction: 'manipulation' }}
+              aria-label="Next track"
             >
-              <SkipForward size={18} />
+              <SkipForward size={20} />
             </button>
           </div>
           
@@ -1000,5 +1074,44 @@ styleEl.innerHTML = `
   }
 `;
 document.head.appendChild(styleEl);
+
+// Touch-specific styling for better mobile experience
+const touchStyleEl = document.createElement('style');
+touchStyleEl.innerHTML = `
+  /* Prevent zooming when tapping controls on mobile */
+  @media (max-width: 768px) {
+    .touch-manipulation {
+      touch-action: manipulation;
+    }
+    
+    /* Make all interactive elements larger on touch devices */
+    button, .music-track-dropdown button {
+      min-height: 44px;
+    }
+    
+    /* Increase hit areas */
+    .music-track-dropdown {
+      position: fixed !important;
+      max-height: 60vh !important;
+      width: 100% !important;
+      left: 0 !important;
+      bottom: 0 !important;
+      top: auto !important;
+      border-radius: 12px 12px 0 0 !important;
+      z-index: 9999 !important;
+      transform: translateY(0) !important;
+      transition: transform 0.3s ease !important;
+      border-left: none !important;
+      border-right: none !important;
+      border-bottom: none !important;
+    }
+    
+    /* Fix for iOS Safari, which has issues with position:fixed and transform */
+    .music-track-dropdown button {
+      padding: 12px 16px;
+    }
+  }
+`;
+document.head.appendChild(touchStyleEl);
 
 export default MusicPlayer; 

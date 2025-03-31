@@ -6,35 +6,27 @@ import React, { useEffect, useState } from 'react';
  */
 const Background: React.FC = () => {
   const [loaded, setLoaded] = useState(false);
-  const [imagePath, setImagePath] = useState('/images/background.jpg');
+  
+  // Use a single consistent path for the background image
+  const backgroundPath = '/background.jpg';
   
   useEffect(() => {
-    // Preload the background image with fallback logic
-    const loadImage = (path: string) => {
-      const img = new Image();
-      img.src = path;
-      img.onload = () => {
-        setLoaded(true);
-        setImagePath(path);
-      };
-      img.onerror = () => {
-        if (path === '/images/background.jpg') {
-          console.log("Failed to load from /images/, trying root path");
-          loadImage('/background.jpg');
-        }
-      };
+    // Preload the background image
+    const img = new Image();
+    img.src = backgroundPath;
+    img.onload = () => setLoaded(true);
+    img.onerror = (e) => {
+      console.error("Failed to load background image:", e);
     };
-    
-    loadImage('/images/background.jpg');
   }, []);
 
   return (
     <>
-      {/* Use two background elements for extra reliability */}
+      {/* Background image element */}
       <div 
         className="fixed inset-0 w-full h-full"
         style={{
-          backgroundImage: `url('${imagePath}')`,
+          backgroundImage: `url('${backgroundPath}')`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
