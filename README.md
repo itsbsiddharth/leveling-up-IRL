@@ -1,4 +1,3 @@
-## Project info
 # Grind IRL: Project Analysis Report
 
 ## Project Overview
