@@ -17,7 +17,7 @@
 Copy only. No GTA logos, fonts or art.
 
 ## Launch checklist
-- [ ] Custom domain live (`level.bsid.dev`)
+- [x] Deployed (leveling-up-irl.vercel.app); [ ] DNS for (`level.bsid.dev`)
 - [ ] Link preview checked on WhatsApp, X, Discord
 - [ ] Seed the board: 5–10 real friends in a guild before posting
 - [ ] Short link from the personal site (`bsid.dev/level`)
