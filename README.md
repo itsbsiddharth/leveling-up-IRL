@@ -1,245 +1,213 @@
-# Grind IRL: Project Analysis Report
+<div align="center">
 
-## Project Overview
-Grind IRL is a gamified productivity application designed to help users track and improve their real-life productivity by turning everyday tasks into an RPG-like experience. The app transforms mundane productivity tracking into an engaging game, where users can earn experience points (XP), level up, maintain their health points (HP), and complete quests by engaging in productive activities in real life.
+<img src="public/og-image.png" alt="Leveling Up IRL" width="640" />
 
-The app targets individuals seeking motivation to maintain productive habits and improve their productivity through gamification. Grind IRL solves the problem of motivation and engagement in productivity tracking by creating a fun, game-like experience that rewards consistent effort and provides visual feedback on progress.
+# Leveling Up IRL
 
-## Features and Functionality
+**Turn real-life productivity into an RPG.**
+Track focused work, earn XP, guard your HP and climb the hunter ranks from E to S.
 
-### Core Features
-- **Activity Tracking System**
-  - Timer for tracking four activity types:
-    - Intellectual activities (studying, reading, etc.)
-    - Physical activities (exercise, sports, etc.)
-    - Distractions (time spent unproductively)
-    - Recovery (rest, meditation, etc.)
-  - Manual activity logging
-  - High-quality activity tracking with XP bonuses
+[Features](#features) · [How it works](#how-it-works) · [Getting started](#getting-started) · [Architecture](#architecture) · [Deployment](#deployment)
 
-- **Gamification Elements**
-  - XP system (experience points for productive activities)
-  - HP system (health points affected by activities)
-  - Level progression with ranks
-  - Streaks for consistent daily activity
-  - Visual feedback (popups for XP gain, level up, etc.)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-Auth_%7C_Firestore-FFCA28?logo=firebase&logoColor=black)
 
-- **Quest System**
-  - Task management system styled as quests
-  - Categories aligned with activity types
-  - XP rewards for quest completion
-  - Due dates and notes for tasks
+</div>
 
-- **Achievement System**
-  - Unlockable achievements for milestones
-  - Visual badges and rewards
+---
 
-- **User Profiles**
-  - Customizable user profiles
-  - Progress statistics
-  - Leaderboard rankings
+## Overview
 
-- **Social Elements**
-  - Global leaderboard for competitive comparison
+Leveling Up IRL (shipped in-app as **Grind IRL**) is a gamified productivity tracker. Every minute you spend
+studying, training or recovering is logged as XP. Time lost to distractions costs HP. Consistency builds streaks,
+and progress moves you through a hunter rank system with a global leaderboard to measure yourself against others.
 
-### User Journeys
-- **New User Flow**
-  - Sign up/login via Google or passwordless email
-  - Introduction to the app's game mechanics
-  - Profile setup
+It is built for students and self-improvers who find ordinary to-do lists and habit trackers easy to ignore.
 
-- **Daily Usage Flow**
-  - Track productive activities using the timer
-  - Log completed activities
-  - View progress on the dashboard
-  - Complete quests and earn achievements
+## Features
 
-- **Progress Review Flow**
-  - View statistics and progress over time
-  - Check leaderboard position
-  - Review and plan new quests
+| | |
+|---|---|
+| ⏱️ **Activity timer** | Start, pause and log sessions across four categories: Intellectual, Physical, Distractions and Recovery. Time can also be logged manually. |
+| ⚡ **XP and HP** | Productive time earns XP; distractions drain HP; recovery restores it. High-quality sessions earn bonus XP. |
+| 🏅 **Hunter ranks** | Progress from E-Rank to S-Rank, with unlimited levels beyond S-Rank. |
+| 🔥 **Streaks** | Consecutive active days build a streak, with your best streak tracked separately. |
+| 📜 **Quests** | Task management styled as quests, with categories, XP rewards, due dates and notes. |
+| 🏆 **Achievements** | Unlockable milestones with visual badges. |
+| 🌍 **Global leaderboard** | Compare XP and rank with every other hunter. |
+| 📅 **Activity heatmap** | A calendar view of your daily effort on the profile page. |
+| 🎧 **Ambient player** | A draggable, resizable in-app music player with track selection. |
+| 📱 **Responsive** | Designed for both desktop and mobile. |
 
-## Technical Stack
+## How it works
 
-### Frontend
-- **Framework:** React (using React 18)
-- **Build Tool:** Vite
-- **Language:** TypeScript
-- **UI Components:** shadcn-ui (based on Radix UI)
-- **Styling:** Tailwind CSS with custom "cyber" theme
-- **State Management:** React Context API
-- **Animation:** Framer Motion
-- **Form Handling:** React Hook Form with Zod validation
-- **Routing:** React Router DOM
+### XP and HP
 
-### Backend & Services
-- **Firebase:**
-  - Authentication
-  - Firestore (database)
-  - Storage (for profile pictures)
-- **Supabase:** Additional backend services
+| Activity | Effect |
+|---|---|
+| Intellectual / Physical | **+1 XP per minute**. +50% for high-quality sessions. +5 XP bonus at 30 min and another +5 at 60 min. |
+| Distractions | **−1 HP per 5 minutes**. Time beyond the first hour costs 50% more. Capped at 60 HP per session. |
+| Recovery | **+2 HP per minute**, capped at 60 HP per session. |
 
-### Additional Libraries
-- **TanStack Query:** Data fetching and cache management
-- **Howler:** Audio handling
-- **Lucide React:** Icon system
-- **date-fns:** Date manipulation
-- **Canvas Confetti:** Visual effects for achievements
-- **React Draggable/Resizable:** UI interaction components
+Sessions longer than 12 hours ask for confirmation before they are logged.
 
-*This stack was chosen to create a modern, responsive application with strong typing support. Firebase provides a comprehensive backend solution that handles authentication, data storage, and file storage without requiring a custom server implementation.*
+### Ranks
 
-## Database and Data Management
+| Rank | XP required |
+|---|---:|
+| E-Rank Hunter | 0 |
+| D-Rank Hunter | 500 |
+| C-Rank Hunter | 1,500 |
+| B-Rank Hunter | 3,500 |
+| A-Rank Hunter | 7,000 |
+| S-Rank Hunter | 15,000 |
 
-### Database Architecture
-Grind IRL uses Firebase Firestore, a NoSQL document database, for data storage. The database is structured into several key collections:
-- **users:** Contains detailed user information
-  - **Document ID:** User's UID
-  - **Fields:** Personal information, settings, and statistics
-- **leaderboard:** Stores leaderboard entries
-  - **Document ID:** User's UID
-  - **Fields:** Simplified user data for leaderboard display (name, XP, rank, etc.)
+S-Rank is split into levels of 2,000 XP. After S-Rank Level 5, every additional level costs 1,000 XP, with no cap.
 
-### Data Models
-- **User Model:**
-  - Authentication info (managed by Firebase Auth)
-  - Profile data (name, email, photo URL)
-  - Game statistics (XP, HP, streak, etc.)
-  - Activity history
-  - Quests
-  - Achievements
+## Getting started
 
-- **Activity Model:**
-  - Type (intellectual, physical, distractions, recovery)
-  - Duration (minutes)
-  - Timestamp
-  - XP gained / HP lost or gained
-  - Quality flag
+### Prerequisites
 
-- **Quest Model:**
-  - Title
-  - Category
-  - XP value
-  - Completion status
-  - Due date
-  - Notes
+- Node.js 18 or later
+- A [Firebase](https://firebase.google.com) project with **Authentication** (Google and Email link providers) and **Cloud Firestore** enabled
 
-### Data Flow
-- User actions are processed through the game context.
-- Changes are synced to local state.
-- Data is persisted to Firestore.
-- User-visible stats are updated in the leaderboard collection.
+### Installation
 
-### Security
-- Firestore security rules ensure users can only access their own data.
-- Storage rules allow users to upload only their own profile pictures.
-- Public data (leaderboard) is read-only for other users.
-
-## Architecture and Code Structure
-
-### Codebase Structure
-/src: Main source code
-/components: UI components organized by feature/function
-/context: React Context providers (Auth, Game, Popup)
-/firebase: Firebase integration services
-/hooks: Custom React hooks
-/lib: Utility libraries and configurations
-/pages: Main application views/routes
-/utils: Helper functions and utilities
-
-### Key Architectural Patterns
-- **Context-based State Management:**
-  - **AuthContext:** Handles user authentication.
-  - **GameContext:** Manages game state and logic.
-  - **PopupContext:** Controls the notification system.
-
-- **Component Composition:**
-  - Uses composition patterns for reusable UI elements.
-  - Implements error boundaries for graceful failure handling.
-
-- **Custom Hooks:**
-  - Encapsulates complex logic and side effects.
-  - Promotes code reuse and separation of concerns.
-
-- **Service Modules:**
-  - **userService:** User data management.
-  - **leaderboardService:** Leaderboard functionality.
-  - Firebase integration services.
-
-### Third-Party Integrations
-- **Firebase Authentication:**
-  - Google sign-in.
-  - Passwordless email authentication.
-- **Firebase Firestore:**
-  - Document-based data storage.
-  - Real-time data syncing.
-- **Firebase Storage:**
-  - Profile picture storage.
-
-## Development and Deployment
-
-### Development Workflow
-- Local development using Vite development server.
-- TypeScript type-checking.
-- ESLint for code quality.
-- Version control via Git.
-
-### Deployment
-- Built with Vite build tools.
-- Firebase Hosting as the primary deployment target.
-- Netlify as an alternative deployment option (configured with `netlify.toml`).
-- Mobile support through Capacitor for Android.
-
-### Testing
-- Error boundaries for component testing.
-- Debug tools in the development environment.
-- Manual testing flows outlined in documentation.
-
-### Performance Considerations
-- Lazy loading of non-critical components.
-- Optimized React Query caching.
-- Component-level error boundaries.
-- Suspense for code-splitting.
-
-## Impact and Value Proposition
-
-### User Benefits
-- Increased motivation for productive activities.
-- Visual progress tracking and feedback.
-- Game-like experience makes productivity tracking enjoyable.
-- Social comparison through leaderboards adds a competitive edge.
-
-### Unique Selling Points
-- **Gamification of Real-Life Activities:** Transforms mundane tasks into rewarding game mechanics.
-- **Balanced Activity System:** Tracks both productive activities and distractions.
-- **Visually Engaging Interface:** Cyberpunk-inspired design with animations and visual feedback.
-- **Mobile-First Design:** Optimized for both desktop and mobile platforms.
-- **Quest System:** Integrates task management with gamification.
-
-### Competitive Advantages
-- More engaging than traditional productivity trackers.
-- Deeper gamification than most habit trackers.
-- Focus on both promoting positive activities and managing distractions.
-- Balanced approach between solo progression and social comparison.
-
-## Conclusion
-Grind IRL represents a modern approach to productivity tracking by deeply integrating game mechanics with real-life activities. The application leverages a modern tech stack—Firebase for a scalable backend, and React with TypeScript for a responsive, type-safe frontend—to deliver a seamless user experience.
-
-The design prioritizes user engagement, visual feedback, and a balanced approach to productivity that acknowledges both work and recovery periods. Grind IRL transforms the mundane task of tracking productivity into an engaging, rewarding experience that motivates users to build and maintain productive habits.
-
-
-```
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+git clone https://github.com/itsbsiddharth/leveling-up-IRL.git
+cd leveling-up-IRL
+npm install
 ```
 
+### Configuration
 
+Create a `.env.local` file in the project root with your Firebase web app config:
+
+```bash
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+VITE_FIREBASE_MEASUREMENT_ID=
+```
+
+Then publish the contents of [`firestore.rules`](firestore.rules) under **Firebase Console → Firestore Database → Rules**.
+
+See [`FIREBASE_SETUP.md`](FIREBASE_SETUP.md) for a step-by-step Firebase walkthrough.
+
+### Run
+
+```bash
+npm run dev        # start the dev server at http://localhost:8080
+npm run build      # production build to dist/
+npm run preview    # serve the production build locally
+npm run lint       # lint with ESLint
+```
+
+## Architecture
+
+### Tech stack
+
+| Layer | Technology |
+|---|---|
+| UI | React 18, TypeScript, Tailwind CSS, shadcn/ui (Radix UI), Framer Motion |
+| State | React Context (`AuthContext`, `GameContext`, `PopupContext`), TanStack Query |
+| Routing | React Router |
+| Backend | Firebase Authentication, Cloud Firestore, Cloud Functions |
+| Audio | Howler.js |
+| Build | Vite |
+
+### Project structure
+
+```
+src/
+├── components/     UI components, grouped by feature
+│   ├── achievements/
+│   ├── dashboard/
+│   ├── layout/
+│   ├── leaderboard/
+│   ├── popups/
+│   ├── profile/
+│   ├── timer/
+│   └── ui/
+├── context/        Auth, game-state and popup providers
+├── firebase/       User and leaderboard services, schema
+├── hooks/          Custom React hooks
+├── pages/          Routes: Index, Timer, Quests, Achievements, Profile
+└── utils/          Rank maths, activity summaries, popup helpers
+functions/          Firebase Cloud Functions
+public/             Static assets: images, sounds, music
+```
+
+### Data model
+
+| Collection | Contents | Access |
+|---|---|---|
+| `users/{uid}` | Profile, settings and game stats (XP, HP, streak) | Owner only |
+| `users/{uid}/userActivities` | Logged sessions: type, minutes, XP/HP change, quality flag | Owner only |
+| `users/{uid}/userQuests` | Quests: title, category, XP value, due date, notes | Owner only |
+| `users/{uid}/userAchievements` | Unlocked achievements | Owner only |
+| `leaderboard/{uid}` | Public summary: name, XP, rank | Signed-in users read; owner writes |
+
+Access is enforced by [`firestore.rules`](firestore.rules).
+
+### Cloud Functions
+
+| Function | Schedule | Purpose |
+|---|---|---|
+| `updateLeaderboard` | Every 30 minutes | Rebuilds leaderboard entries from user stats |
+| `resetDailyQuests` | Daily, 00:00 | Resets daily quests |
+| `awardStreakBonuses` | Daily, 01:00 | Grants streak rewards |
+
+## Deployment
+
+The app is a static single-page build and deploys to any static host. A Netlify configuration with SPA
+redirects is included in [`netlify.toml`](netlify.toml):
+
+```bash
+npm run build      # outputs to dist/
+```
+
+Deploy the Cloud Functions separately:
+
+```bash
+firebase deploy --only functions
+```
+
+Remember to add your production domain under **Firebase Console → Authentication → Settings → Authorized domains**.
+
+## Documentation
+
+| Document | Topic |
+|---|---|
+| [`FIREBASE_SETUP.md`](FIREBASE_SETUP.md) | Firebase project setup |
+| [`BACKGROUND_FEATURE.md`](BACKGROUND_FEATURE.md) | Animated background system |
+| [`MEDIA_REQUIREMENTS.md`](MEDIA_REQUIREMENTS.md) | Image, sound and music assets |
+| [`MOBILE_IMPROVEMENTS.md`](MOBILE_IMPROVEMENTS.md) | Mobile layout work |
+| [`MOBILE_FIXES.md`](MOBILE_FIXES.md) | Mobile bug fixes |
+
+## Contributing
+
+Issues and pull requests are welcome. For larger changes, please open an issue first to discuss what you would like to change.
+
+1. Fork the repository
+2. Create a branch: `git checkout -b feature/your-feature`
+3. Commit your changes: `git commit -m "Add your feature"`
+4. Push and open a pull request
+
+## Acknowledgements
+
+Inspired by the "System" and hunter ranks of the *Solo Leveling* series. This is an independent fan project and is
+not affiliated with or endorsed by the rights holders. Music and other third-party media in `public/` remain the
+property of their respective owners.
+
+---
+
+<div align="center">
+Built by <a href="https://bsid.dev">Siddharth</a>
+</div>
